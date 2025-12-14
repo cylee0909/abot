@@ -23,6 +23,8 @@ def parse_args():
                         help='是否更新成分股列表 (默认: True)')
     parser.add_argument('--no-update-components', action='store_false', dest='update_components', 
                         help='不更新成分股列表')
+    parser.add_argument('--stock-codes', type=str, nargs='*', default=None, 
+                        help='指定的股票代码列表，多个股票代码用空格分隔 (默认: 所有成分股)')
     return parser.parse_args()
 
 async def main(args):
@@ -40,7 +42,7 @@ async def main(args):
     scheduler = TaskScheduler(db_path, max_concurrent)
     
     # 运行完整更新任务
-    await scheduler.run_full_update(start_date, end_date, update_components=update_components)
+    await scheduler.run_full_update(start_date, end_date, update_components=update_components, stock_codes=args.stock_codes)
     
     # 统计数据库中的数据条数
     count = scheduler.get_stock_count_in_db()

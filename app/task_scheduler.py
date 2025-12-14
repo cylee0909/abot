@@ -36,24 +36,29 @@ class TaskScheduler:
         self.updater = ComponentsUpdater(db_path)
         self.downloader = StockDownloader(max_concurrent)
     
-    async def run_download_task(self, start_date: str, end_date: str):
+    async def run_download_task(self, start_date: str, end_date: str, stock_codes: List[str] = None):
         """
         运行下载任务
         
         Args:
             start_date: 开始日期 (YYYY-MM-DD)
             end_date: 结束日期 (YYYY-MM-DD)
+            stock_codes: 指定的股票代码列表，None 表示所有成分股
         """
         logger.info(f"开始运行下载任务")
         logger.info(f"时间范围: {start_date} 至 {end_date}")
         logger.info(f"最大并发数: {self.max_concurrent}")
         logger.info(f"数据库路径: {self.db_path}")
         
-        # 1. 获取沪深300成分股列表
-        stocks = self.updater.get_hs300_stocks()
-        if not stocks:
-            logger.error("没有获取到沪深300成分股列表，任务终止")
-            return False
+        # 1. 获取股票列表
+        if stock_codes:
+            stocks = stock_codes
+            logger.info(f"使用指定的股票列表，共 {len(stocks)} 只股票")
+        else:
+            stocks = self.updater.get_hs300_stocks()
+            if not stocks:
+                logger.error("没有获取到沪深300成分股列表，任务终止")
+                return False
         
         logger.info(f"开始下载 {len(stocks)} 只股票的历史数据")
         
@@ -130,7 +135,7 @@ class TaskScheduler:
         logger.info(f"下载任务完成! 成功处理 {success_count} 只股票，跳过 {skipped_count} 只股票，总计 {success_count + skipped_count} 只股票")
         return True
     
-    async def run_full_update(self, start_date: str, end_date: str, update_components: bool = True):
+    async def run_update(self, start_date: str, end_date: str, update_components: bool = True, stock_codes: List[str] = None):
         """
         运行完整更新任务
         
@@ -138,6 +143,7 @@ class TaskScheduler:
             start_date: 开始日期 (YYYY-MM-DD)
             end_date: 结束日期 (YYYY-MM-DD)
             update_components: 是否更新成分股列表
+            stock_codes: 指定的股票代码列表，None 表示所有成分股
         """
         # 1. 更新成分股列表
         if update_components:
@@ -148,7 +154,7 @@ class TaskScheduler:
         
         # 2. 下载历史数据
         logger.info("开始下载历史数据")
-        return await self.run_download_task(start_date, end_date)
+        return await self.run_download_task(start_date, end_date, stock_codes)
     
     def get_stock_count_in_db(self):
         """

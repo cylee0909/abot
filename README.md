@@ -31,12 +31,20 @@
 │   ├── hs300_history.db        # SQLite数据库文件
 │   └── update_log.txt          # 更新日志
 ├── app/                  # 源代码目录
-│   ├── components_updater.py    # 数据更新模块
+│   ├── db/                  # 数据库相关模块
+│   │   ├── __init__.py
+│   │   ├── config.py
+│   │   ├── connection.py
+│   │   ├── hs300_components.py
+│   │   ├── models.py
+│   │   └── stock_history.py
+│   ├── components_updater.py    # 成分股更新模块
 │   ├── stock_downloader.py     # 股票下载器模块
 │   └── task_scheduler.py       # 任务调度模块
 ├── test/                 # 测试代码目录
-│   ├── check_missing_stocks.py  # 检查缺失股票脚本
+│   ├── test_missing_stocks.py   # 检查缺失股票脚本
 │   └── test_downloader.py       # 下载器测试脚本
+├── analyze_hs300_data.py     # 数据分析脚本
 ├── main.py              # 主程序入口
 ├── pyproject.toml       # 项目配置文件
 ├── uv.lock              # uv依赖锁定文件
@@ -90,7 +98,7 @@ sqlite3 data/hs300_history.db "SELECT * FROM stock_history WHERE stock_code='600
 ### 3. 检查缺失的股票
 
 ```bash
-python test/check_missing_stocks.py
+python test/test_missing_stocks.py
 ```
 
 ### 4. 测试下载器
@@ -101,26 +109,37 @@ python test/test_downloader.py
 
 ## 模块说明
 
-### 1. 数据更新模块 (`data_updater.py`)
+### 1. 成分股更新模块 (`components_updater.py`)
 
-- **功能**：负责将沪深300成分股JSON数据存储到数据库
+- **功能**：负责将沪深300成分股JSON数据存储到数据库，并提供成分股查询功能
 - **主要方法**：
-  - `update_hs300_components()`：将JSON数据更新到数据库
+  - `update_hs300_components(json_file_path)`：将JSON数据更新到数据库
   - `get_hs300_stocks()`：从数据库获取沪深300成分股列表
 
-### 2. 下载器模块 (`stock_downloader.py`)
+### 2. 股票下载器模块 (`stock_downloader.py`)
 
-- **功能**：支持下载某一只股票的指定周期历史数据
+- **功能**：支持下载单只或多只股票的指定周期历史数据
 - **主要方法**：
-  - `get_stock_historical_data()`：获取单只股票历史数据
-  - `batch_get_stock_data()`：批量获取多只股票历史数据
+  - `get_stock_historical_data(stock_code, start_date, end_date)`：获取单只股票历史数据
+  - `batch_get_stock_data(stock_codes, start_date, end_date)`：批量获取多只股票历史数据
 
 ### 3. 任务调度模块 (`task_scheduler.py`)
 
-- **功能**：从数据库读取股票列表，调用下载器下载数据，并插入数据库
+- **功能**：从数据库读取股票列表，调用下载器下载数据，并将数据插入数据库
 - **主要方法**：
-  - `run_download_task()`：运行下载任务
-  - `run_full_update()`：运行完整更新（成分股+历史数据）
+  - `run_download_task(start_date, end_date, stock_codes=None)`：运行下载任务
+  - `run_update(start_date, end_date, update_components=True, stock_codes=None)`：运行完整更新（成分股+历史数据）
+  - `get_stock_count_in_db()`：获取数据库中股票历史数据的条数
+
+### 4. 数据库模块 (`app/db/`)
+
+- **功能**：负责数据库连接、表结构定义和数据操作
+- **主要文件**：
+  - `config.py`：数据库配置
+  - `connection.py`：数据库连接管理
+  - `hs300_components.py`：成分股数据操作
+  - `stock_history.py`：股票历史数据操作
+  - `models.py`：数据模型定义
 
 ## 配置说明
 
@@ -135,7 +154,7 @@ python test/test_downloader.py
 
 ### 下载器配置
 
-在`src/stock_downloader.py`中可以修改：
+在`app/stock_downloader.py`中可以修改：
 
 - 重试次数和超时设置
 
@@ -143,11 +162,15 @@ python test/test_downloader.py
 
 ### 1. 如何调整并发数？
 
-修改`main.py`中的`max_concurrent`参数，建议根据网络情况调整，默认为20。
+修改`main.py`中的`max_concurrent`参数，建议根据网络情况调整，默认为50。
 
 ### 2. 如何更新成分股列表？
 
-运行`bash update_hs300_data.sh`脚本，或修改`main.py`中的`update_components`参数为`True`，运行主程序。
+运行`bash update_hs300_data.sh`脚本，或在主程序中设置`update_components=True`运行。
+
+### 3. 如何只下载指定股票的数据？
+
+可以在调用`run_download_task`或`run_update`方法时，传入`stock_codes`参数指定要下载的股票代码列表。
 
 ## 依赖说明
 
@@ -189,5 +212,5 @@ python -m pytest test/
 
 ---
 
-**更新时间**：2025-12-14
+**更新时间**：2025-12-15
 **版本**：1.0.0

@@ -10,14 +10,12 @@ import os
 from typing import Optional, List, Tuple
 import akshare as ak
 from datetime import datetime
+from app.config import settings
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, 
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-# 雪球配置（用于AKShare的部分接口）
-XUEQIU_TOKEN: str = os.getenv("XUEQIU_TOKEN", "")
 
 # 定义StockInfo类
 class StockInfo:
@@ -241,15 +239,15 @@ class StockDownloader:
             
             # 获取实时行情
             try:
-                df = await self._run_sync(ak.stock_individual_spot_xq,symbol=market+code,token=XUEQIU_TOKEN)
+                df = await self._run_sync(ak.stock_individual_spot_xq,symbol=market+code,token=settings.XUEQIU_TOKEN)
             except Exception as e:
                 print(f"获取xq股票信息失败: {str(e)}")
                 import requests
                 r = requests.get("https://xueqiu.com/hq", headers={"user-agent": "Mozilla"})
                 t = r.cookies["xq_a_token"]
-                XUEQIU_TOKEN = t
+                settings.XUEQIU_TOKEN = t
                 print(f"更新xq_a_token: {t}")
-                df = await self._run_sync(ak.stock_individual_spot_xq,symbol=market+code,token=XUEQIU_TOKEN)
+                df = await self._run_sync(ak.stock_individual_spot_xq,symbol=market+code,token=settings.XUEQIU_TOKEN)
             
             if df.empty:
                 return None

@@ -5,20 +5,22 @@ import asyncio
 import argparse
 from datetime import datetime, timedelta
 from app.task_scheduler import TaskScheduler
+from app.config import settings
 
 def parse_args():
     """
     解析命令行参数
     """
     parser = argparse.ArgumentParser(description='ABot 股票数据更新工具')
-    parser.add_argument('--db-path', type=str, default='./data/hs300_history.db', 
+    parser.add_argument('--db-path', type=str, default=settings.DB_PATH, 
                         help='数据库路径 (默认: ./data/hs300_history.db)')
-    parser.add_argument('--max-concurrent', type=int, default=50, 
-                        help='最大并发数 (默认: 50)')
-    parser.add_argument('--start-date', type=str, default='2015-01-01', 
-                        help='开始日期 (默认: 2015-01-01)')
+    parser.add_argument('--max-concurrent', type=int, default=settings.MAX_CONCURRENT, 
+                        help=f'最大并发数 (默认: {settings.MAX_CONCURRENT})')
+    parser.add_argument('--start-date', type=str, default=settings.START_DATE, 
+                        help=f'开始日期 (默认: {settings.START_DATE})')
+
     parser.add_argument('--end-date', type=str, default=None, 
-                        help='结束日期 (默认: 当前日期前2天)')
+                        help='结束日期 (默认: 当前日期前1天)')
     parser.add_argument('--update-components', action='store_true', default=True, 
                         help='是否更新成分股列表 (默认: True)')
     parser.add_argument('--no-update-components', action='store_false', dest='update_components', 
@@ -35,14 +37,14 @@ async def main(args):
     db_path = args.db_path
     max_concurrent = args.max_concurrent
     start_date = args.start_date
-    end_date = args.end_date if args.end_date else (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
+    end_date = args.end_date if args.end_date else (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
     update_components = args.update_components
     
     # 创建任务调度器
     scheduler = TaskScheduler(db_path, max_concurrent)
     
     # 运行完整更新任务
-    await scheduler.run_full_update(start_date, end_date, update_components=update_components, stock_codes=args.stock_codes)
+    await scheduler.run_update(start_date, end_date, update_components=update_components, stock_codes=args.stock_codes)
     
     # 统计数据库中的数据条数
     count = scheduler.get_stock_count_in_db()

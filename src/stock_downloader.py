@@ -6,7 +6,8 @@ import pandas as pd
 import numpy as np
 import logging
 import re
-from typing import Optional, List
+import os
+from typing import Optional, List, Tuple
 import akshare as ak
 from datetime import datetime
 
@@ -14,6 +15,9 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO, 
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# 雪球配置（用于AKShare的部分接口）
+XUEQIU_TOKEN: str = os.getenv("XUEQIU_TOKEN", "")
 
 # 定义StockInfo类
 class StockInfo:
@@ -67,17 +71,8 @@ class StockDownloader:
         Returns:
             股票历史数据DataFrame
         """
-        import time
-        import re
-
-        market =  'SH'
-        # 根据股票代码前缀确定正确的后缀
-        if stock_code.startswith('30') or stock_code.startswith('00'):
-            # 30开头是深交所创业板，00开头是深交所主板
-            market = 'SZ'
-        else:
-            # 600开头是上交所主板，688开头是上交所科创板
-            market = 'SH'
+        # 解析股票代码
+        market, stock_code = self._get_market_and_code(stock_code)
         
         full_symbol = f"{market.lower()}{stock_code}"
 
@@ -221,89 +216,86 @@ class StockDownloader:
             logger.error(f"搜索股票时出错: {str(e)}")
             return []
     
-    async def get_stock_info(self, symbol: str) -> Optional[StockInfo]:
-        """
-        获取股票详细信息
+    def _get_market_and_code(self, stock_code: str) -> Tuple[str, str]:
+        code_match = re.match(r'(\d+)\.([A-Z]+)', stock_code)
+        if not code_match:
+            market =  'SH'
+            # 根据股票代码前缀确定正确的后缀
+            if stock_code.startswith('30') or stock_code.startswith('00'):
+                # 30开头是深交所创业板，00开头是深交所主板
+                market = 'SZ'
+            else:
+                # 600开头是上交所主板，688开头是上交所科创板
+                market = 'SH'
+            return market, stock_code 
         
-        Args:
-            symbol: 股票代码，格式如 600519.SH
-            
-        Returns:
-            股票详细信息对象
-        """
+        code = code_match.group(1)
+        market = code_match.group(2)
+        return market, code
+
+
+    async def get_stock_info(self, symbol: str) -> Optional[StockInfo]:
+        """获取股票详细信息"""
         try:
-            logger.info(f"正在获取股票信息: {symbol}")
-            # 解析股票代码
-            code_match = re.match(r'(\d+)\.([A-Z]+)', symbol)
-            if not code_match:
-                return None
+            market, code = self._get_market_and_code(symbol)
             
-            code = code_match.group(1)
-            market = code_match.group(2)
-            
-            # 获取实时行情，使用不需要token的API
+            # 获取实时行情
             try:
-                # 使用AKShare的实时行情API，不需要token
-                df = await self._run_sync(ak.stock_zh_a_spot_em_)
-                # 过滤出目标股票
-                stock_df = df[df['代码'] == code]
-                if stock_df.empty:
-                    return None
-                
-                # 获取基本信息
-                name = stock_df.iloc[0]['名称']
-                exchange = "上海证券交易所" if market == "SH" else "深圳证券交易所"
-                
-                # 获取实时价格数据
-                price = float(stock_df.iloc[0]['最新价']) if not pd.isna(stock_df.iloc[0]['最新价']) else 0.0
-                change = float(stock_df.iloc[0]['涨跌额']) if not pd.isna(stock_df.iloc[0]['涨跌额']) else 0.0
-                change_percent = float(stock_df.iloc[0]['涨跌幅']) if not pd.isna(stock_df.iloc[0]['涨跌幅']) else 0.0
-                
-                # 获取成交量（单位股，从万手转换为股）
-                volume = int(stock_df.iloc[0]['成交量']) * 10000 if not pd.isna(stock_df.iloc[0]['成交量']) else 0
-                
-                # 初始化其他字段
-                market_cap = 0.0
-                pe = None
-                dividend = None
-                currency = 'CNY'
-                
-                # 尝试获取更多详细信息（如PE、市值等）
-                try:
-                    stock_info_df = await self._run_sync(ak.stock_individual_info_em, symbol=code)
-                    if not stock_info_df.empty:
-                        # 从股票信息中提取PE等数据
-                        pe_data = stock_info_df[stock_info_df['item'] == '市盈率(TTM)']
-                        if not pe_data.empty:
-                            pe = float(pe_data.iloc[0]['value']) if not pd.isna(pe_data.iloc[0]['value']) else None
-                            
-                        # 提取市值数据
-                        market_cap_data = stock_info_df[stock_info_df['item'].str.contains('总市值', na=False)]
-                        if not market_cap_data.empty:
-                            market_cap = float(market_cap_data.iloc[0]['value']) if not pd.isna(market_cap_data.iloc[0]['value']) else 0.0
-                except Exception as e:
-                    logger.warning(f"获取股票详细信息失败: {str(e)}")
-                    # 继续执行，使用默认值
-                
-                stock_info = StockInfo(
-                    symbol=symbol,
-                    name=name,
-                    exchange=exchange,
-                    currency=currency,
-                    price=price,
-                    change=change,
-                    changePercent=change_percent,
-                    marketCap=market_cap,
-                    volume=volume,
-                    pe=pe,
-                    dividend=dividend
-                )
-                return stock_info
+                df = await self._run_sync(ak.stock_individual_spot_xq,symbol=market+code,token=XUEQIU_TOKEN)
             except Exception as e:
-                logger.error(f"获取股票实时行情失败: {str(e)}")
+                print(f"获取xq股票信息失败: {str(e)}")
+                import requests
+                r = requests.get("https://xueqiu.com/hq", headers={"user-agent": "Mozilla"})
+                t = r.cookies["xq_a_token"]
+                XUEQIU_TOKEN = t
+                print(f"更新xq_a_token: {t}")
+                df = await self._run_sync(ak.stock_individual_spot_xq,symbol=market+code,token=XUEQIU_TOKEN)
+            
+            if df.empty:
                 return None
+                        
+            # 获取股票名称
+            name = df[df['item']=='名称'].iloc[0]['value']
+            
+            # 确定交易所
+            exchange = "上海证券交易所" if market == "SH" else "深圳证券交易所"
+            
+            # 计算涨跌幅
+            price = float(df[df['item']=='现价'].iloc[0]['value']) if not pd.isna(df[df['item']=='现价'].iloc[0]['value']) else 0.0
+            change = float(df[df['item']=='涨跌'].iloc[0]['value']) if not pd.isna(df[df['item']=='涨跌'].iloc[0]['value']) else 0.0
+            change_percent = float(df[df['item']=='涨幅'].iloc[0]['value']) if not pd.isna(df[df['item']=='涨幅'].iloc[0]['value']) else 0.0
+            
+            # 获取市值（亿元转为元）
+            market_cap = float(df[df['item']=='资产净值/总市值'].iloc[0]['value']) if not pd.isna(df[df['item']=='资产净值/总市值'].iloc[0]['value']) else 0.0
+
+            # 获取成交量（单位股）
+            volume = int(float(df[df['item']=='成交量'].iloc[0]['value'])) if not pd.isna(df[df['item']=='成交量'].iloc[0]['value']) else 0
+
+            # 获取市盈率
+            pe = float(df[df['item']=='市盈率(TTM)'].iloc[0]['value']) if not pd.isna(df[df['item']=='市盈率(TTM)'].iloc[0]['value']) else None
+            
+            # 获取股息率
+            dividend = float(df[df['item']=='股息率(TTM)'].iloc[0]['value']) if not pd.isna(df[df['item']=='股息率(TTM)'].iloc[0]['value']) else None
+
+            # 获取货币
+            currency = df[df['item']=='货币'].iloc[0]['value'] if not pd.isna(df[df['item']=='货币'].iloc[0]['value']) else 'CNY'
+            
+            stock_info = StockInfo(
+                symbol=symbol,
+                name=name,
+                exchange=exchange,
+                currency=currency,
+                price=price,
+                change=change,
+                changePercent=change_percent,
+                marketCap=market_cap,
+                volume=volume,
+                pe=pe,
+                dividend=dividend
+            )
+            return stock_info
         except Exception as e:
-            logger.error(f"获取股票信息时出错: {str(e)}")
+            print(f"获取股票信息时出错: {str(e)}")
             return None
     
     async def batch_get_stock_data(self, stock_codes: List[str], start_date: str, end_date: str) -> List[pd.DataFrame]:

@@ -7,43 +7,46 @@ import os
 # 添加项目根目录到Python搜索路径
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import asyncio
-from datetime import datetime, timedelta
+import pytest
 from src.stock_downloader import StockDownloader
 
-async def test_downloader():
-    """
-    测试股票下载器
-    """
-    downloader = StockDownloader()
-    
+@pytest.fixture
+def stock_downloader():
+    """创建股票下载器实例的fixture"""
+    return StockDownloader()
+
+@pytest.mark.asyncio
+async def test_get_stock_historical_data(stock_downloader):
+    """测试获取单只股票的历史数据"""
     # 测试单只股票下载
-    print("测试单只股票下载...")
-    df = await downloader.get_stock_historical_data('302132', '2015-01-01', '2025-12-13')
-    print(f"获取到 {len(df)} 条302132历史数据")
-    if not df.empty:
-        print(df.head())
+    df = await stock_downloader.get_stock_historical_data('302132', '2015-01-01', '2025-12-13')
     
+    # 断言返回的数据不为空
+    assert not df.empty
+    # 断言数据包含必要的列
+    assert all(col in df.columns for col in ['date', 'open', 'close', 'high', 'low', 'amount', 'stock_code'])
+    # 断言股票代码正确
+    assert df['stock_code'].iloc[0] == '302132'
+
+@pytest.mark.asyncio
+async def test_search_stocks(stock_downloader):
+    """测试搜索股票功能"""
     # 测试搜索股票功能
-    print("\n测试搜索股票功能...")
-    search_result = await downloader.search_stocks('茅台')
-    print(f"搜索到 {len(search_result)} 条匹配结果")
-    for stock in search_result[:5]:
-        print(f"  - {stock.symbol}: {stock.name} ({stock.exchange})")
+    search_result = await stock_downloader.search_stocks('茅台')
     
+    # 断言返回的结果是列表类型
+    assert isinstance(search_result, list)
+
+@pytest.mark.asyncio
+async def test_get_stock_info(stock_downloader):
+    """测试获取股票信息功能"""
     # 测试获取股票信息功能
-    print("\n测试获取股票信息功能...")
-    stock_info = await downloader.get_stock_info('600519.SH')
+    stock_info = await stock_downloader.get_stock_info('600519.SH')
+    
+    assert stock_info is not None
+    # 断言返回的结果是StockInfo类型或None
     if stock_info:
-        print(f"股票代码: {stock_info.symbol}")
-        print(f"股票名称: {stock_info.name}")
-        print(f"最新价格: {stock_info.price}")
-        print(f"涨跌幅: {stock_info.changePercent}%")
-        print(f"成交量: {stock_info.volume}")
-        print(f"市盈率: {stock_info.pe}")
-    else:
-        print("未获取到股票信息")
-
-
-if __name__ == "__main__":
-    asyncio.run(test_downloader())
+        assert hasattr(stock_info, 'symbol')
+        assert hasattr(stock_info, 'name')
+        assert hasattr(stock_info, 'price')
+        assert stock_info.symbol == '600519.SH'

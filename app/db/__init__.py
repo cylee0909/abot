@@ -9,8 +9,7 @@ from .stock_history import (
     init_table as init_stock_history_table,
     save_to_database as save_stock_history,
     get_stock_count,
-    get_latest_date as get_latest_stock_date,
-    check_data_exists as check_stock_data_exists
+    get_latest_date as get_latest_stock_date
 )
 
 # 导出沪深300成分股相关操作

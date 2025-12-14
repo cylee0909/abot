@@ -3,7 +3,7 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from src.task_scheduler import TaskScheduler
+from app.task_scheduler import TaskScheduler
 
 async def main():
     """

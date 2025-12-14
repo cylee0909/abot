@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-import sqlite3
-
-# 连接数据库
-conn = sqlite3.connect('/Users/cylee/lcy/git/ABot/data/hs300_history.db')
-cursor = conn.cursor()
+from app.db import db
 
 # 查询所有公司信息
+cursor = db.get_cursor()
 cursor.execute('SELECT security_code, security_name_abbr FROM hs300_components ORDER BY security_name_abbr')
 companies = cursor.fetchall()
 
@@ -38,4 +35,4 @@ print(f"有历史数据的公司数量: {companies_with_data}")
 print(f"无历史数据的公司数量: {total_companies - companies_with_data}")
 
 # 关闭数据库连接
-conn.close()
+db.close()

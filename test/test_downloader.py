@@ -8,7 +8,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import pytest
-from src.stock_downloader import StockDownloader
+from app.stock_downloader import StockDownloader
 
 @pytest.fixture
 def stock_downloader():

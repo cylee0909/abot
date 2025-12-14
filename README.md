@@ -30,8 +30,8 @@
 │   ├── hs300_components.json  # 沪深300成分股JSON文件
 │   ├── hs300_history.db        # SQLite数据库文件
 │   └── update_log.txt          # 更新日志
-├── src/                  # 源代码目录
-│   ├── data_updater.py    # 数据更新模块
+├── app/                  # 源代码目录
+│   ├── components_updater.py    # 数据更新模块
 │   ├── stock_downloader.py     # 股票下载器模块
 │   └── task_scheduler.py       # 任务调度模块
 ├── test/                 # 测试代码目录

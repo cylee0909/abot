@@ -9,12 +9,12 @@ from .connection import db
 logger = logging.getLogger(__name__)
 
 def init_table():
-    """初始化沪深300成分股表"""
+    """初始化公司表"""
     cursor = db.get_cursor()
     
-    # 创建沪深300成分股表
+    # 创建公司表
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS hs300_components (
+    CREATE TABLE IF NOT EXISTS components (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         secucode TEXT NOT NULL,
         security_code TEXT NOT NULL,
@@ -40,9 +40,9 @@ def init_table():
     db.commit()
 
 def update_components(json_file_path: str) -> bool:
-    """将沪深300成分股JSON数据更新到数据库"""
+    """将公司JSON数据更新到数据库"""
     if not os.path.exists(json_file_path):
-        logger.error(f"沪深300成分股文件不存在: {json_file_path}")
+        logger.error(f"公司文件不存在: {json_file_path}")
         return False
     
     try:
@@ -80,7 +80,7 @@ def update_components(json_file_path: str) -> bool:
             f3 = stock.get('f3') or 0.0
 
             cursor.execute('''
-            REPLACE INTO hs300_components (
+            REPLACE INTO components (
                 secucode, security_code, type, security_name_abbr, close_price, industry,
                 region, weight, eps, bps, roe, total_shares, free_shares, free_cap,
                 f2, f3, update_date
@@ -106,33 +106,33 @@ def update_components(json_file_path: str) -> bool:
             ))
         
         db.commit()
-        logger.info(f"成功保存 {len(stocks)} 只沪深300成分股到数据库")
+        logger.info(f"成功保存 {len(stocks)} 只公司到数据库")
         return True
     except Exception as e:
-        logger.error(f"保存沪深300成分股失败: {e}")
+        logger.error(f"保存公司失败: {e}")
         db.rollback()
         return False
 
 def get_components() -> List[str]:
-    """从数据库获取沪深300成分股列表"""
+    """从数据库获取公司列表"""
     try:
         cursor = db.get_cursor()
         
-        cursor.execute('SELECT security_code FROM hs300_components')
+        cursor.execute('SELECT security_code FROM components')
         stocks = [row[0] for row in cursor.fetchall()]
         
-        logger.info(f"成功读取 {len(stocks)} 只沪深300成分股")
+        logger.info(f"成功读取 {len(stocks)} 只公司")
         return stocks
     except Exception as e:
-        logger.error(f"读取沪深300成分股失败: {e}")
+        logger.error(f"读取公司失败: {e}")
         return []
 
 def get_components_with_details() -> List[Dict]:
-    """从数据库获取沪深300成分股详细信息"""
+    """从数据库获取公司详细信息"""
     try:
         cursor = db.get_cursor()
         
-        cursor.execute('SELECT * FROM hs300_components')
+        cursor.execute('SELECT * FROM components')
         rows = cursor.fetchall()
         
         # 将结果转换为字典列表
@@ -141,8 +141,8 @@ def get_components_with_details() -> List[Dict]:
             stock_dict = dict(row)
             stocks.append(stock_dict)
         
-        logger.info(f"成功读取 {len(stocks)} 只沪深300成分股详细信息")
+        logger.info(f"成功读取 {len(stocks)} 只公司详细信息")
         return stocks
     except Exception as e:
-        logger.error(f"读取沪深300成分股详细信息失败: {e}")
+        logger.error(f"读取公司详细信息失败: {e}")
         return []

@@ -1,8 +1,8 @@
-# 沪深300成分股历史数据下载系统
+# 公司历史数据下载系统
 
 ## 项目介绍
 
-本项目是一个用于下载和存储沪深300成分股历史数据的系统，支持从2015年至今的历史数据下载，并将数据存储到SQLite数据库中，方便后续分析和使用。
+本项目是一个用于下载和存储公司历史数据的系统，支持从2015年至今的历史数据下载，并将数据存储到SQLite数据库中，方便后续分析和使用。
 
 ## 功能特点
 
@@ -27,7 +27,7 @@
 ```
 .
 ├── data/                 # 数据存储目录
-│   ├── hs300_components.json  # 沪深300成分股JSON文件
+│   ├── hs300_components.json  # 公司JSON文件
 │   ├── hs300_history.db        # SQLite数据库文件
 │   └── update_log.txt          # 更新日志
 ├── app/                  # 源代码目录
@@ -35,7 +35,7 @@
 │   │   ├── __init__.py
 │   │   ├── config.py
 │   │   ├── connection.py
-│   │   ├── hs300_components.py
+│   │   ├── components.py
 │   │   ├── models.py
 │   │   └── stock_history.py
 │   ├── components_updater.py    # 成分股更新模块
@@ -44,11 +44,11 @@
 ├── test/                 # 测试代码目录
 │   ├── test_missing_stocks.py   # 检查缺失股票脚本
 │   └── test_downloader.py       # 下载器测试脚本
-├── analyze_hs300_data.py     # 数据分析脚本
+├── analyze_data.py     # 数据分析脚本
 ├── main.py              # 主程序入口
 ├── pyproject.toml       # 项目配置文件
 ├── uv.lock              # uv依赖锁定文件
-└── update_hs300_data.sh  # 数据更新脚本
+└── update_data.sh  # 数据更新脚本
 ```
 
 ## 安装步骤
@@ -64,9 +64,9 @@
    uv install
    ```
 
-3. **获取沪深300成分股数据**
+3. **获取公司数据**
    ```bash
-   bash update_hs300_data.sh
+   bash update_data.sh
    ```
 
 ## 使用说明
@@ -78,7 +78,7 @@ python main.py
 ```
 
 主程序将自动完成以下工作：
-- 更新沪深300成分股列表
+- 更新公司列表
 - 下载所有成分股从2015-01-01至昨天的历史数据
 - 将数据保存到SQLite数据库
 
@@ -111,10 +111,10 @@ python test/test_downloader.py
 
 ### 1. 成分股更新模块 (`components_updater.py`)
 
-- **功能**：负责将沪深300成分股JSON数据存储到数据库，并提供成分股查询功能
+- **功能**：负责将公司JSON数据存储到数据库，并提供成分股查询功能
 - **主要方法**：
-  - `update_hs300_components(json_file_path)`：将JSON数据更新到数据库
-  - `get_hs300_stocks()`：从数据库获取沪深300成分股列表
+  - `update_components(json_file_path)`：将JSON数据更新到数据库
+  - `get_components()`：从数据库获取公司列表
 
 ### 2. 股票下载器模块 (`stock_downloader.py`)
 
@@ -137,7 +137,7 @@ python test/test_downloader.py
 - **主要文件**：
   - `config.py`：数据库配置
   - `connection.py`：数据库连接管理
-  - `hs300_components.py`：成分股数据操作
+  - `components.py`：公司数据操作
   - `stock_history.py`：股票历史数据操作
   - `models.py`：数据模型定义
 
@@ -166,7 +166,7 @@ python test/test_downloader.py
 
 ### 2. 如何更新成分股列表？
 
-运行`bash update_hs300_data.sh`脚本，或在主程序中设置`update_components=True`运行。
+运行`bash update_data.sh`脚本，或在主程序中设置`update_components=True`运行。
 
 ### 3. 如何只下载指定股票的数据？
 

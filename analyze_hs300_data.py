@@ -3,13 +3,13 @@ from app.db import db
 
 # 查询所有公司信息
 cursor = db.get_cursor()
-cursor.execute('SELECT security_code, security_name_abbr FROM hs300_components ORDER BY security_name_abbr')
+cursor.execute('SELECT security_code, security_name_abbr FROM components ORDER BY security_name_abbr')
 companies = cursor.fetchall()
 
 total_companies = len(companies)
 companies_with_data = 0
 
-print("\n=== 沪深300成分股历史数据统计 ===\n")
+print("\n=== 公司历史数据统计 ===\n")
 print(f"{'公司名称':<20} {'股票代码':<10} {'数据条数':<10} {'起始日期':<15} {'结束日期':<15}")
 print("-" * 75)
 

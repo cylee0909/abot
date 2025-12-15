@@ -12,10 +12,9 @@ from .stock_history import (
     get_latest_date as get_latest_stock_date
 )
 
-# 导出沪深300成分股相关操作
-from .hs300_components import (
-    init_table as init_hs300_components_table,
-    update_components as update_hs300_components,
-    get_components as get_hs300_components,
-    get_components_with_details as get_hs300_components_with_details
+from .components import (
+    init_table as init_components_table,
+    update_components as update_components,
+    get_components as get_components,
+    get_components_with_details as get_components_with_details
 )

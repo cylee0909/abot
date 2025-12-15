@@ -46,5 +46,5 @@ if __name__ == "__main__":
     # 测试数据更新模块
     updater = ComponentsUpdater('./data/hs300_history.db')
     updater.update_components('./data/hs300_components.json')
-    stocks = updater.get_stocks()
+    stocks = updater.get_components()
     print(f"公司数量: {len(stocks)}")

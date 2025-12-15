@@ -17,10 +17,10 @@ def components_updater():
     return ComponentsUpdater('./data/hs300_history.db')
 
 def test_check_missing_stocks(components_updater):
-    """测试检查哪些沪深300成分股没有成功下载历史数据"""
-    # 获取所有沪深300成分股
-    all_stocks = components_updater.get_hs300_stocks()
-    assert len(all_stocks) > 0, "沪深300成分股列表为空"
+    """测试检查哪些公司没有成功下载历史数据"""
+    # 获取所有公司
+    all_stocks = components_updater.get_stocks()
+    assert len(all_stocks) > 0, "公司列表为空"
     
     # 连接数据库，查询已下载的股票
     cursor = db.get_cursor()
@@ -33,7 +33,7 @@ def test_check_missing_stocks(components_updater):
     missing_stocks = list(set(all_stocks) - set(downloaded_stocks))
     
     # 打印结果（用于调试，实际测试中可以注释掉）
-    print(f"沪深300成分股总数: {len(all_stocks)}")
+    print(f"公司总数: {len(all_stocks)}")
     print(f"已成功下载的股票数量: {len(downloaded_stocks)}")
     print(f"未成功下载的股票数量: {len(missing_stocks)}")
     
@@ -54,9 +54,9 @@ def test_check_missing_stocks(components_updater):
 
 def test_check_missing_stocks_details(components_updater):
     """测试检查未下载股票的详细信息"""
-    # 获取所有沪深300成分股
-    all_stocks = components_updater.get_hs300_stocks()
-    assert len(all_stocks) > 0, "沪深300成分股列表为空"
+    # 获取所有公司
+    all_stocks = components_updater.get_stocks()
+    assert len(all_stocks) > 0, "公司列表为空"
     
     # 连接数据库，查询已下载的股票
     cursor = db.get_cursor()
@@ -71,7 +71,7 @@ def test_check_missing_stocks_details(components_updater):
     # 如果有未下载的股票，检查它们的详细信息
     if missing_stocks:
         for stock in sorted(missing_stocks):
-            cursor.execute('SELECT security_name_abbr, industry, region FROM hs300_components WHERE security_code = ?', (stock,))
+            cursor.execute('SELECT security_name_abbr, industry, region FROM components WHERE security_code = ?', (stock,))
             result = cursor.fetchone()
             # 断言每个未下载的股票都能在成分股表中找到详细信息
             assert result is not None, f"股票 {stock} 在成分股表中未找到详细信息"

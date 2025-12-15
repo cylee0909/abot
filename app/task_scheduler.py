@@ -54,9 +54,9 @@ class TaskScheduler:
             stocks = stock_codes
             logger.info(f"使用指定的股票列表，共 {len(stocks)} 只股票")
         else:
-            stocks = self.updater.get_hs300_stocks()
+            stocks = self.updater.get_components()
             if not stocks:
-                logger.error("没有获取到沪深300成分股列表，任务终止")
+                logger.error("没有获取到公司列表，任务终止")
                 return False
         
         logger.info(f"开始下载 {len(stocks)} 只股票的历史数据")
@@ -146,8 +146,8 @@ class TaskScheduler:
         """
         # 1. 更新成分股列表
         if update_components:
-            logger.info("开始更新沪深300成分股列表")
-            if not self.updater.update_hs300_components('./data/hs300_components.json'):
+            logger.info("开始更新公司列表")
+            if not self.updater.update_components('./data/hs300_components.json'):
                 logger.error("更新成分股列表失败")
                 return False
         

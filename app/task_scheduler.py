@@ -13,7 +13,6 @@ from app.stock_downloader import StockDownloader
 from app.db import (
     save_stock_history,
     get_latest_stock_date,
-    check_stock_data_exists,
     get_stock_count
 )
 

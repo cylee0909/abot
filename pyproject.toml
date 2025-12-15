@@ -9,4 +9,5 @@ dependencies = [
     "akshare==1.16.99",
     "numpy>=2.2.6",
     "pandas>=2.3.3",
+    "pydantic-settings>=2.12.0",
 ]

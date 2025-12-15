@@ -61,29 +61,47 @@ def update_components(json_file_path: str) -> bool:
         
         # 插入或更新成分股数据
         for stock in stocks:
+            secucode = stock.get('SECUCODE') or ''
+            security_code = stock.get('SECURITY_CODE') or ''
+            type_ = stock.get('TYPE') or ''
+            name_abbr = stock.get('SECURITY_NAME_ABBR') or ''
+            close_price = stock.get('CLOSE_PRICE') or 0.0
+            industry = stock.get('INDUSTRY') or ''
+            region = stock.get('REGION') or ''
+            weight = stock.get('WEIGHT')
+            weight = 0.0 if weight is None else weight
+            eps = stock.get('EPS') or 0.0
+            bps = stock.get('BPS') or 0.0
+            roe = stock.get('ROE') or 0.0
+            total_shares = stock.get('TOTAL_SHARES') or 0.0
+            free_shares = stock.get('FREE_SHARES') or 0.0
+            free_cap = stock.get('FREE_CAP') or 0.0
+            f2 = stock.get('f2') or 0.0
+            f3 = stock.get('f3') or 0.0
+
             cursor.execute('''
             REPLACE INTO hs300_components (
-                secucode, security_code, type, security_name_abbr, close_price, industry, 
-                region, weight, eps, bps, roe, total_shares, free_shares, free_cap, 
+                secucode, security_code, type, security_name_abbr, close_price, industry,
+                region, weight, eps, bps, roe, total_shares, free_shares, free_cap,
                 f2, f3, update_date
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                stock['SECUCODE'],
-                stock['SECURITY_CODE'],
-                stock['TYPE'],
-                stock['SECURITY_NAME_ABBR'],
-                stock['CLOSE_PRICE'],
-                stock['INDUSTRY'],
-                stock['REGION'],
-                stock['WEIGHT'],
-                stock['EPS'],
-                stock['BPS'],
-                stock['ROE'],
-                stock['TOTAL_SHARES'],
-                stock['FREE_SHARES'],
-                stock['FREE_CAP'],
-                stock['f2'],
-                stock['f3'],
+                secucode,
+                security_code,
+                type_,
+                name_abbr,
+                close_price,
+                industry,
+                region,
+                weight,
+                eps,
+                bps,
+                roe,
+                total_shares,
+                free_shares,
+                free_cap,
+                f2,
+                f3,
                 update_date
             ))
         

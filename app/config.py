@@ -3,7 +3,7 @@ import os
 
 class Settings(BaseSettings):
     # 数据库配置
-    DB_PATH: str = "data/hs300_history.db"
+    DB_PATH: str = "data/stock_history.db"
     MAX_CONCURRENT: int = 20
     
     # 雪球配置（用于AKShare的部分接口）

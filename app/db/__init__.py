@@ -12,9 +12,9 @@ from .stock_history import (
     get_latest_date as get_latest_stock_date
 )
 
-from .components import (
-    init_table as init_components_table,
-    update_components as update_components,
-    get_components as get_components,
-    get_components_with_details as get_components_with_details
+from .companies import (
+    init_table as init_companies_table,
+    update_companies as update_companies,
+    get_companies as get_companies,
+    get_companies_with_details as get_companies_with_details
 )

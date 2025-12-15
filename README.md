@@ -1,8 +1,8 @@
-# 公司历史数据下载系统
+# 上市公司历史股票数据下载系统
 
 ## 项目介绍
 
-本项目是一个用于下载和存储公司历史数据的系统，支持从2015年至今的历史数据下载，并将数据存储到SQLite数据库中，方便后续分析和使用。
+本项目是一个用于下载和存储上市公司历史股票数据的系统，支持从2015年至今的历史数据下载，并将数据存储到SQLite数据库中，方便后续分析和使用。
 
 ## 功能特点
 
@@ -27,18 +27,18 @@
 ```
 .
 ├── data/                 # 数据存储目录
-│   ├── hs300_components.json  # 公司JSON文件
-│   ├── hs300_history.db        # SQLite数据库文件
+│   ├── hs300_companies.json  # 公司JSON文件
+│   ├── stock_history.db        # SQLite数据库文件
 │   └── update_log.txt          # 更新日志
 ├── app/                  # 源代码目录
 │   ├── db/                  # 数据库相关模块
 │   │   ├── __init__.py
 │   │   ├── config.py
 │   │   ├── connection.py
-│   │   ├── components.py
+│   │   ├── companies.py
 │   │   ├── models.py
 │   │   └── stock_history.py
-│   ├── components_updater.py    # 成分股更新模块
+│   ├── companies_updater.py    # 公司更新模块
 │   ├── stock_downloader.py     # 股票下载器模块
 │   └── task_scheduler.py       # 任务调度模块
 ├── test/                 # 测试代码目录
@@ -86,13 +86,13 @@ python main.py
 
 ```bash
 # 查看数据库中的股票数量
-sqlite3 data/hs300_history.db "SELECT COUNT(DISTINCT stock_code) FROM stock_history;"
+sqlite3 data/stock_history.db "SELECT COUNT(DISTINCT stock_code) FROM stock_history;"
 
 # 查看总记录数
-sqlite3 data/hs300_history.db "SELECT COUNT(*) FROM stock_history;"
+sqlite3 data/stock_history.db "SELECT COUNT(*) FROM stock_history;"
 
 # 查看单只股票的数据
-sqlite3 data/hs300_history.db "SELECT * FROM stock_history WHERE stock_code='600519' LIMIT 10;"
+sqlite3 data/stock_history.db "SELECT * FROM stock_history WHERE stock_code='600519' LIMIT 10;"
 ```
 
 ### 3. 检查缺失的股票
@@ -109,12 +109,12 @@ python test/test_downloader.py
 
 ## 模块说明
 
-### 1. 成分股更新模块 (`components_updater.py`)
+### 1. 成分股更新模块 (`companies_updater.py`)
 
 - **功能**：负责将公司JSON数据存储到数据库，并提供成分股查询功能
 - **主要方法**：
-  - `update_components(json_file_path)`：将JSON数据更新到数据库
-  - `get_components()`：从数据库获取公司列表
+  - `update_companies(json_file_path)`：将JSON数据更新到数据库
+  - `get_companies()`：从数据库获取公司列表
 
 ### 2. 股票下载器模块 (`stock_downloader.py`)
 
@@ -128,7 +128,7 @@ python test/test_downloader.py
 - **功能**：从数据库读取股票列表，调用下载器下载数据，并将数据插入数据库
 - **主要方法**：
   - `run_download_task(start_date, end_date, stock_codes=None)`：运行下载任务
-  - `run_update(start_date, end_date, update_components=True, stock_codes=None)`：运行完整更新（成分股+历史数据）
+  - `run_update(start_date, end_date, update_companies=True, stock_codes=None)`：运行完整更新（成分股+历史数据）
   - `get_stock_count_in_db()`：获取数据库中股票历史数据的条数
 
 ### 4. 数据库模块 (`app/db/`)
@@ -137,7 +137,7 @@ python test/test_downloader.py
 - **主要文件**：
   - `config.py`：数据库配置
   - `connection.py`：数据库连接管理
-  - `components.py`：公司数据操作
+  - `companies.py`：公司数据操作
   - `stock_history.py`：股票历史数据操作
   - `models.py`：数据模型定义
 
@@ -166,7 +166,7 @@ python test/test_downloader.py
 
 ### 2. 如何更新成分股列表？
 
-运行`bash update_data.sh`脚本，或在主程序中设置`update_components=True`运行。
+运行`bash update_data.sh`脚本，或在主程序中设置`update_companies=True`运行。
 
 ### 3. 如何只下载指定股票的数据？
 

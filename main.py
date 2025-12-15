@@ -13,7 +13,7 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description='ABot 股票数据更新工具')
     parser.add_argument('--db-path', type=str, default=settings.DB_PATH, 
-                        help='数据库路径 (默认: ./data/hs300_history.db)')
+                        help='数据库路径 (默认: ./data/stock_history.db)')
     parser.add_argument('--max-concurrent', type=int, default=settings.MAX_CONCURRENT, 
                         help=f'最大并发数 (默认: {settings.MAX_CONCURRENT})')
     parser.add_argument('--start-date', type=str, default=settings.START_DATE, 
@@ -21,12 +21,10 @@ def parse_args():
 
     parser.add_argument('--end-date', type=str, default=None, 
                         help='结束日期 (默认: 当前日期前1天)')
-    parser.add_argument('--update-components', action='store_true', default=True, 
-                        help='是否更新成分股列表 (默认: True)')
-    parser.add_argument('--no-update-components', action='store_false', dest='update_components', 
-                        help='不更新成分股列表')
+    parser.add_argument('--companies-file', type=str, default=None, 
+                        help='公司列表文件路径，如果提供则更新公司列表')
     parser.add_argument('--stock-codes', type=str, nargs='*', default=None, 
-                        help='指定的股票代码列表，多个股票代码用空格分隔 (默认: 所有成分股)')
+                        help='指定的股票代码列表，多个股票代码用空格分隔 (默认: 所有公司)')
     return parser.parse_args()
 
 async def main(args):
@@ -38,13 +36,13 @@ async def main(args):
     max_concurrent = args.max_concurrent
     start_date = args.start_date
     end_date = args.end_date if args.end_date else (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-    update_components = args.update_components
+    companies_file = args.companies_file
     
     # 创建任务调度器
     scheduler = TaskScheduler(db_path, max_concurrent)
     
     # 运行完整更新任务
-    await scheduler.run_update(start_date, end_date, update_components=update_components, stock_codes=args.stock_codes)
+    await scheduler.run_update(start_date, end_date, components_file=companies_file, stock_codes=args.stock_codes)
     
     # 统计数据库中的数据条数
     count = scheduler.get_stock_count_in_db()

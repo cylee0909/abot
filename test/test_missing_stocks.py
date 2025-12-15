@@ -8,18 +8,18 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import pytest
-from app.conponents_updater import ComponentsUpdater
+from app.companies_updater import CompaniesUpdater
 from app.db import db
 
 @pytest.fixture
-def components_updater():
-    """创建ComponentsUpdater实例的fixture"""
-    return ComponentsUpdater('./data/hs300_history.db')
+def companies_updater():
+    """创建CompaniesUpdater实例的fixture"""
+    return CompaniesUpdater('./data/stock_history.db')
 
-def test_check_missing_stocks(components_updater):
+def test_check_missing_stocks(companies_updater : CompaniesUpdater):
     """测试检查哪些公司没有成功下载历史数据"""
     # 获取所有公司
-    all_stocks = components_updater.get_stocks()
+    all_stocks = companies_updater.get_companies()
     assert len(all_stocks) > 0, "公司列表为空"
     
     # 连接数据库，查询已下载的股票
@@ -52,10 +52,10 @@ def test_check_missing_stocks(components_updater):
     else:
         print("所有股票都已成功下载!")
 
-def test_check_missing_stocks_details(components_updater):
+def test_check_missing_stocks_details(companies_updater : CompaniesUpdater):
     """测试检查未下载股票的详细信息"""
     # 获取所有公司
-    all_stocks = components_updater.get_stocks()
+    all_stocks = companies_updater.get_companies()
     assert len(all_stocks) > 0, "公司列表为空"
     
     # 连接数据库，查询已下载的股票
@@ -71,7 +71,7 @@ def test_check_missing_stocks_details(components_updater):
     # 如果有未下载的股票，检查它们的详细信息
     if missing_stocks:
         for stock in sorted(missing_stocks):
-            cursor.execute('SELECT security_name_abbr, industry, region FROM components WHERE security_code = ?', (stock,))
+            cursor.execute('SELECT security_name_abbr, industry, region FROM companies WHERE security_code = ?', (stock,))
             result = cursor.fetchone()
             # 断言每个未下载的股票都能在成分股表中找到详细信息
             assert result is not None, f"股票 {stock} 在成分股表中未找到详细信息"

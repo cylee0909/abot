@@ -8,7 +8,7 @@ from typing import List
 import pandas as pd
 
 # 导入自定义模块
-from app.components_updater import ComponentsUpdater
+from app.companies_updater import CompaniesUpdater
 from app.stock_downloader import StockDownloader
 from app.db import (
     save_stock_history,
@@ -32,7 +32,7 @@ class TaskScheduler:
         """
         self.db_path = db_path
         self.max_concurrent = max_concurrent
-        self.updater = ComponentsUpdater(db_path)
+        self.updater = CompaniesUpdater(db_path)
         self.downloader = StockDownloader(max_concurrent)
     
     async def run_download_task(self, start_date: str, end_date: str, stock_codes: List[str] = None):
@@ -54,7 +54,7 @@ class TaskScheduler:
             stocks = stock_codes
             logger.info(f"使用指定的股票列表，共 {len(stocks)} 只股票")
         else:
-            stocks = self.updater.get_components()
+            stocks = self.updater.get_companies()
             if not stocks:
                 logger.error("没有获取到公司列表，任务终止")
                 return False
@@ -134,21 +134,21 @@ class TaskScheduler:
         logger.info(f"下载任务完成! 成功处理 {success_count} 只股票，跳过 {skipped_count} 只股票，总计 {success_count + skipped_count} 只股票")
         return True
     
-    async def run_update(self, start_date: str, end_date: str, update_components: bool = True, stock_codes: List[str] = None):
+    async def run_update(self, start_date: str, end_date: str, components_file: str = None, stock_codes: List[str] = None):
         """
         运行完整更新任务
         
         Args:
             start_date: 开始日期 (YYYY-MM-DD)
             end_date: 结束日期 (YYYY-MM-DD)
-            update_components: 是否更新成分股列表
-            stock_codes: 指定的股票代码列表，None 表示所有成分股
+            components_file: 公司列表文件路径，如果提供则更新公司列表
+            stock_codes: 指定的股票代码列表，None 表示所有公司
         """
-        # 1. 更新成分股列表
-        if update_components:
+        # 1. 更新公司列表
+        if components_file:
             logger.info("开始更新公司列表")
-            if not self.updater.update_components('./data/hs300_components.json'):
-                logger.error("更新成分股列表失败")
+            if not self.updater.update_companies(components_file):
+                logger.error("更新公司列表失败")
                 return False
         
         # 2. 下载历史数据
@@ -169,13 +169,13 @@ if __name__ == "__main__":
     import asyncio
     
     async def test_scheduler():
-        scheduler = TaskScheduler('./data/hs300_history.db')
+        scheduler = TaskScheduler('./data/stock_history.db')
         
         # 获取昨天的日期
         end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
         
         # 运行完整更新
-        await scheduler.run_full_update('2025-01-01', end_date, update_components=False)
+        await scheduler.run_update('2025-01-01', end_date, components_file=None)
         
         # 统计数据库中的数据条数
         count = scheduler.get_stock_count_in_db()

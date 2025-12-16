@@ -9,13 +9,117 @@
   height: 100vh;
 }
 
-.stock-list-title {
+.stock-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 12px 16px;
-  font-size: 16px;
-  font-weight: 600;
   border-bottom: 1px solid #eee;
   background: #fff;
   flex-shrink: 0;
+  position: relative;
+}
+
+.stock-list-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
+  user-select: none;
+  cursor: default;
+}
+
+/* 筛选功能样式 */
+.filter-container {
+  position: relative;
+  display: inline-block;
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 20px;
+  background-color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: #666;
+}
+
+.filter-btn:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+}
+
+.filter-btn.active {
+  border-color: #1890ff;
+  color: #1890ff;
+  background-color: #e6f7ff;
+}
+
+.filter-icon {
+  font-size: 14px;
+}
+
+.filter-tag {
+  background-color: #1890ff;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+}
+
+.filter-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background-color: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 180px;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.filter-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 14px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filter-item:hover {
+  background-color: #f0f0f0;
+}
+
+.filter-item.active {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  font-weight: 500;
+}
+
+/* 加载和空状态样式 */
+.loading,
+.empty-list {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
 }
 
 .stock-list-content {

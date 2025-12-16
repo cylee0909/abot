@@ -40,7 +40,7 @@ html, body {
   display: flex;
   flex-direction: column;
 }
-.sd-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 20px; border-bottom: 1px solid #eee; }
+.sd-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 20px; border-bottom: 1px solid #eee; user-select: none; }
 .sd-title { display: flex; align-items: center; gap: 12px; }
 .sd-code { font-size: 18px; color: #111; font-weight: 700; }
 .sd-price { font-size: 24px; font-weight: 700; }
@@ -48,8 +48,9 @@ html, body {
 .sd-price.up, .sd-change.up { color: #06c167; }
 .sd-price.down, .sd-change.down { color: #e64a3b; }
 .sd-actions { display: flex; gap: 8px; }
-.sd-btn { padding: 6px 16px; border-radius: 4px; border: 1px solid #0f78ff; background: #0f78ff; color: #fff; font-size: 14px; }
+.sd-btn { padding: 6px 16px; border-radius: 4px; border: 1px solid #0f78ff; background: #0f78ff; color: #fff; font-size: 14px; user-select: none; }
 .sd-btn.ghost { background: #fff; color: #0f78ff; }
+.sd-header h3, .sd-actions { user-select: none; }
 
 .sd-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 8px 20px; }
 .sd-stat { display: flex; align-items: center; gap: 8px; padding: 4px 0; background: transparent; border: none; border-radius: 0; }

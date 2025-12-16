@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as echarts from 'echarts'
 import './StockDetail.css'
 import StockList from './StockList'
+import SelectGroupModal from './SelectGroupModal'
 import { calcMA, calcMACD, DataSeries, formatNumber, resample, StockInfo, type Timeframe } from '../models/stock'
 import { getCompany, getHistory } from '../api/companies'
 
@@ -12,6 +13,7 @@ export default function StockDetail() {
   const [data, setData] = useState<DataSeries>(new DataSeries())
   const [info, setInfo] = useState<StockInfo>(new StockInfo())
   const [selectedStock, setSelectedStock] = useState<string>('')
+  const [isSelectGroupModalVisible, setIsSelectGroupModalVisible] = useState(false)
 
   // 获取单个股票详情
   const fetchStockDetail = async (securityCode: string) => {
@@ -175,7 +177,12 @@ export default function StockDetail() {
             </div>
           </div>
           <div className="sd-actions">
-            <button className="sd-btn ghost">加自选</button>
+            <button 
+              className="sd-btn ghost" 
+              onClick={() => setIsSelectGroupModalVisible(true)}
+            >
+              加自选
+            </button>
           </div>
         </header>
 
@@ -210,6 +217,17 @@ export default function StockDetail() {
 
         <section className="sd-chart" ref={chartRef} />
       </main>
+
+      {/* 选择分组弹窗 */}
+      <SelectGroupModal
+        visible={isSelectGroupModalVisible}
+        stockCode={selectedStock}
+        onClose={() => setIsSelectGroupModalVisible(false)}
+        onSuccess={() => {
+          // 可以在这里添加成功提示
+          console.log('股票已成功添加到分组')
+        }}
+      />
     </div>
   )
 }

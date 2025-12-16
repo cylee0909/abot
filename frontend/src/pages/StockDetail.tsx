@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import * as echarts from 'echarts'
 import './StockDetail.css'
+import StockList from './StockList'
 import { calcMA, calcMACD, DataSeries, formatNumber, resample, StockInfo, type Timeframe } from '../models/stock'
-import { getCompanies, getCompany, getHistory } from '../api/companies'
+import { getCompany, getHistory } from '../api/companies'
 
 export default function StockDetail() {
   const chartRef = useRef<HTMLDivElement | null>(null)
@@ -10,22 +11,7 @@ export default function StockDetail() {
   const [baseData, setBaseData] = useState<DataSeries>(new DataSeries())
   const [data, setData] = useState<DataSeries>(new DataSeries())
   const [info, setInfo] = useState<StockInfo>(new StockInfo())
-  const [companies, setCompanies] = useState<any[]>([])
   const [selectedStock, setSelectedStock] = useState<string>('')
-
-  // 获取所有股票列表
-  const fetchCompanies = async () => {
-    try {
-      const res = await getCompanies()
-      if (res?.data) {
-        setCompanies(res.data)
-        return res.data
-      }
-    } catch (error) {
-      console.error('获取股票列表失败:', error)
-    }
-    return []
-  }
 
   // 获取单个股票详情
   const fetchStockDetail = async (securityCode: string) => {
@@ -37,6 +23,7 @@ export default function StockDetail() {
       const series = DataSeries.fromHistory(hist)
       setBaseData(series)
       setData(series)
+
       setInfo(StockInfo.from(company, hist))
     } catch (error) {
       console.error('获取股票详情失败:', error)
@@ -50,18 +37,7 @@ export default function StockDetail() {
   }
 
   useEffect(() => {
-    ;(async () => {
-      try {
-        const companiesList = await fetchCompanies()
-        const first = companiesList?.[0]
-        const securityCode = first?.security_code
-        if (!securityCode) return
-        setSelectedStock(securityCode)
-        fetchStockDetail(securityCode)
-      } catch (_) {
-        // 保持静默，使用默认值
-      }
-    })()
+    // 初始加载不执行，等待用户选择股票
   }, [])
 
   useEffect(() => {
@@ -186,21 +162,7 @@ export default function StockDetail() {
   return (
     <div className="stock-detail-container">
       {/* 左侧股票列表 */}
-      <aside className="stock-list">
-        <h3 className="stock-list-title">股票列表</h3>
-        <div className="stock-list-content">
-          {companies.map((stock) => (
-            <div
-              key={stock.security_code}
-              className={`stock-item ${selectedStock === stock.security_code ? 'active' : ''}`}
-              onClick={() => handleStockSelect(stock.security_code)}
-            >
-              <div className="stock-item-name">{stock.security_name_abbr}</div>
-              <div className="stock-item-code">{stock.security_code}</div>
-            </div>
-          ))}
-        </div>
-      </aside>
+      <StockList selectedStock={selectedStock} onStockSelect={handleStockSelect} />
 
       {/* 右侧股票详情 */}
       <main className="stock-detail">

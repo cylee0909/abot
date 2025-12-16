@@ -54,6 +54,23 @@ export default function StockList({ selectedStock, onStockSelect }: StockListPro
     }
   }, [showFilter])
 
+  // 点击外部区域关闭筛选列表
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      const header = document.querySelector('.stock-list-header');
+      
+      if (header && showFilter && !header.contains(target)) {
+        setShowFilter(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFilter])
+
   // 初始加载时自动选择第一只股票
   useEffect(() => {
     if (companies.length > 0 && !isInitialized && !selectedStock) {
@@ -98,39 +115,36 @@ export default function StockList({ selectedStock, onStockSelect }: StockListPro
     <aside className="stock-list">
       {/* 股票列表标题和筛选功能 */}
       <div className="stock-list-header">
-        <h3 className="stock-list-title">股票列表</h3>
-        <div className="filter-container">
-          <button 
-            className={`filter-btn ${selectedGroupId !== null ? 'active' : ''}`}
-            onClick={() => setShowFilter(!showFilter)}
-          >
-            <span className="filter-icon">🔍</span>
-            {selectedGroupId !== null && (
-              <span className="filter-tag">{getSelectedGroupName()}</span>
-            )}
-          </button>
-          
-          {/* 分组筛选下拉框 */}
-          {showFilter && (
-            <div className="filter-dropdown">
-              <div 
-                className={`filter-item ${selectedGroupId === null ? 'active' : ''}`}
-                onClick={() => filterByGroup(null)}
-              >
-                全部股票
-              </div>
-              {groups.map((group) => (
-                <div 
-                  key={group.id} 
-                  className={`filter-item ${selectedGroupId === group.id ? 'active' : ''}`}
-                  onClick={() => filterByGroup(group.id)}
-                >
-                  {group.name}
-                </div>
-              ))}
-            </div>
+        <h3 
+          className="stock-list-title"
+          onClick={() => setShowFilter(!showFilter)}
+        >
+          股票列表
+          {selectedGroupId !== null && (
+            <span className="filter-tag">{getSelectedGroupName()}</span>
           )}
-        </div>
+        </h3>
+        
+        {/* 分组筛选下拉框 */}
+        {showFilter && (
+          <div className="filter-dropdown">
+            <div 
+              className={`filter-item ${selectedGroupId === null ? 'active' : ''}`}
+              onClick={() => filterByGroup(null)}
+            >
+              全部股票
+            </div>
+            {groups.map((group) => (
+              <div 
+                key={group.id} 
+                className={`filter-item ${selectedGroupId === group.id ? 'active' : ''}`}
+                onClick={() => filterByGroup(group.id)}
+              >
+                {group.name}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 股票列表内容 */}

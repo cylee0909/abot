@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getGroups, addStockToGroup, createGroup, type Group } from '../api/groups';
+import { getGroups, addStockToGroup, createGroup, deleteGroup, type Group } from '../api/groups';
 import CreateGroupModal from './CreateGroupModal';
 import './SelectGroupModal.css';
 
@@ -77,6 +77,29 @@ export default function SelectGroupModal({ visible, stockCode, onClose, onSucces
     }
   };
 
+  // 删除分组
+  const handleDeleteGroup = async (id: number, e: React.MouseEvent) => {
+    // 阻止事件冒泡，避免触发分组选择
+    e.stopPropagation();
+    
+    setLoading(true);
+    setError('');
+    try {
+      await deleteGroup(id);
+      // 删除成功后刷新分组列表
+      await fetchGroups();
+      // 如果删除的是当前选中的分组，清除选中状态
+      if (selectedGroupId === id) {
+        setSelectedGroupId(null);
+      }
+    } catch (err) {
+      setError('删除分组失败，请重试');
+      console.error('删除分组失败:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="modal-overlay">
       <div className="modal-container select-group-modal">
@@ -100,6 +123,7 @@ export default function SelectGroupModal({ visible, stockCode, onClose, onSucces
                 onClick={() => setIsCreateModalVisible(true)}
               >
                 <div className="group-name">新建分组</div>
+                <div className="group-date"></div>
               </div>
               
               {groups.length === 0 ? (
@@ -117,8 +141,17 @@ export default function SelectGroupModal({ visible, stockCode, onClose, onSucces
                     }}
                   >
                     <div className="group-name">{group.name}</div>
-                    <div className="group-date">
-                      {new Date(group.created_at).toLocaleDateString()}
+                    <div className="group-actions">
+                      <div className="group-date">
+                        {new Date(group.created_at).toLocaleDateString()}
+                      </div>
+                      <button 
+                        className="group-delete-btn"
+                        onClick={(e) => handleDeleteGroup(group.id, e)}
+                        title="删除分组"
+                      >
+                        ×
+                      </button>
                     </div>
                   </div>
                 ))

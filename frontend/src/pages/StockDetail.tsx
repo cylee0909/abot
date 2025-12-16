@@ -173,7 +173,7 @@ export default function StockDetail() {
             <div className="sd-code">{info.name}（{info.code}）</div>
             <div className={`sd-price ${info.change >= 0 ? 'up' : 'down'}`}>{info.price.toFixed(2)}</div>
             <div className={`sd-change ${info.change >= 0 ? 'up' : 'down'}`}>
-              {info.change.toFixed(2)} {info.changePct.toFixed(2)}%
+              {info.change >= 0 ? '+' : ''}{info.change.toFixed(2)} {info.changePct >= 0 ? '+' : ''}{info.changePct.toFixed(2)}%
             </div>
           </div>
           <div className="sd-actions">
@@ -181,7 +181,7 @@ export default function StockDetail() {
               className="sd-btn ghost" 
               onClick={() => setIsSelectGroupModalVisible(true)}
             >
-              加自选
+              加入分组
             </button>
           </div>
         </header>

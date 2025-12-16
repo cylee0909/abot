@@ -54,6 +54,50 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* 全局禁止文本选择和光标，除了特定元素 */
+* {
+  user-select: none;
+  cursor: default;
+}
+
+/* 确保所有按钮保持指针光标 */
+button,
+.btn,
+.btn-link,
+.sd-btn,
+.filter-btn {
+  cursor: pointer !important;
+}
+
+/* 允许股票列表项文本选择和光标 */
+.stock-item,
+.stock-item * {
+  user-select: text;
+  cursor: pointer;
+}
+
+/* 允许sd-header下sd-title的文本选择和光标 */
+.sd-header .sd-title,
+.sd-header .sd-title * {
+  user-select: text;
+  cursor: default;
+}
+
+/* 允许sd-stats相关元素出现光标 */
+.sd-stats,
+.sd-stat,
+.sd-stat * {
+  user-select: text;
+  cursor: default;
+}
+
+/* 确保tab项保持指针光标 */
+.sd-tab,
+.filter-item {
+  cursor: pointer !important;
+}
+
+/* 保持原有媒体查询 */
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;

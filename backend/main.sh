@@ -34,9 +34,9 @@ run_foreground() {
   kill_port
   echo "Starting server in foreground on port $PORT"
   if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
-    exec uv run main.py "${EXTRA_ARGS[@]}"
+    exec uv run cli.py "${EXTRA_ARGS[@]}"
   else
-    exec uv run main.py
+    exec uv run cli.py
   fi
 }
 
@@ -45,9 +45,9 @@ start_background() {
   ensure_logs
   echo "Starting server in background on port $PORT"
   if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
-    nohup uv run main.py "${EXTRA_ARGS[@]}" >"$LOG_FILE" 2>&1 &
+    nohup uv run cli.py "${EXTRA_ARGS[@]}" >"$LOG_FILE" 2>&1 &
   else
-    nohup uv run main.py >"$LOG_FILE" 2>&1 &
+    nohup uv run cli.py >"$LOG_FILE" 2>&1 &
   fi
   echo $! >"$PID_FILE"
   echo "Server started with PID $(cat "$PID_FILE"). Logs: $LOG_FILE"
@@ -77,7 +77,7 @@ stop_server() {
 
 usage() {
   echo "Usage: $0 {run|start|stop} [args...]"
-  echo "  所有 [args...] 直接传递给 main.py，例如 --port 5002"
+  echo "  所有 [args...] 直接传递给 cli.py，例如 --port 5002"
   echo "  run   前台运行（启动前清理目标端口进程，默认 5001）"
   echo "  start 后台运行（启动前清理目标端口进程）"
   echo "  stop  停止进程（优先使用PID文件，否则按端口清理；支持 --port）"

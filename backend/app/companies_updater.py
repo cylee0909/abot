@@ -44,7 +44,7 @@ class CompaniesUpdater:
 
 if __name__ == "__main__":
     # 测试数据更新模块
-    updater = CompaniesUpdater('./data/stock_history.db')
-    updater.update_companies('./data/hs300_components.json')
+    updater = CompaniesUpdater('../data/stock_history.db')
+    updater.update_companies('../data/hs300_components.json')
     companies = updater.get_companies()
     print(f"公司数量: {len(companies)}")

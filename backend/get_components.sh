@@ -4,7 +4,7 @@
 # 用途：定期从东方财富API获取沪深300和中证500成分股数据并保存到JSON文件
 
 # 配置参数
-DATA_DIR="./data"
+DATA_DIR="../data"
 LOG_FILE="${DATA_DIR}/update_log.txt"
 
 # 沪深300配置

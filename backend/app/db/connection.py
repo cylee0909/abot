@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from .config import DB_CONFIG
 
 class DatabaseConnection:
@@ -14,7 +15,9 @@ class DatabaseConnection:
     def connect(self):
         """建立数据库连接"""
         if self._connection is None:
-            self._connection = sqlite3.connect(DB_CONFIG['database'])
+            db_path = DB_CONFIG['database']
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            self._connection = sqlite3.connect(db_path, check_same_thread=False)
             self._connection.row_factory = sqlite3.Row
         return self._connection
     

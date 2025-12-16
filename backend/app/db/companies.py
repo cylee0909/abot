@@ -162,3 +162,13 @@ def get_companies_with_details() -> List[Dict]:
     except Exception as e:
         logger.error(f"读取公司详细信息失败: {e}")
         return []
+
+def get_company_by_code(security_code: str) -> Dict | None:
+    try:
+        cursor = db.get_cursor()
+        cursor.execute('SELECT * FROM companies WHERE security_code = ?', (security_code,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"读取公司失败: {e}")
+        return None

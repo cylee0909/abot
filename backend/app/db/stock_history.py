@@ -84,3 +84,24 @@ def check_data_exists(stock_code: str, start_date: str, end_date: str) -> int:
     count = cursor.fetchone()[0]
     
     return count
+
+def get_history(stock_code: str, start_date: str | None = None, end_date: str | None = None, limit: int | None = 1000):
+    cursor = db.get_cursor()
+    where = 'stock_code = ?'
+    params = [stock_code]
+    if start_date and end_date:
+        where += ' AND date BETWEEN ? AND ?'
+        params += [start_date, end_date]
+    elif start_date:
+        where += ' AND date >= ?'
+        params += [start_date]
+    elif end_date:
+        where += ' AND date <= ?'
+        params += [end_date]
+    sql = f'SELECT date, open, close, high, low, amount FROM stock_history WHERE {where} ORDER BY date ASC'
+    if limit:
+        sql += ' LIMIT ?'
+        params.append(limit)
+    cursor.execute(sql, tuple(params))
+    rows = cursor.fetchall()
+    return [dict(row) for row in rows]

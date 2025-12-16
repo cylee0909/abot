@@ -33,6 +33,7 @@ kill_port() {
 run_foreground() {
   kill_port
   echo "Starting server in foreground on port $PORT"
+  cd "$SCRIPT_DIR/backend"
   if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
     exec uv run cli.py "${EXTRA_ARGS[@]}"
   else
@@ -44,6 +45,7 @@ start_background() {
   kill_port
   ensure_logs
   echo "Starting server in background on port $PORT"
+  cd "$SCRIPT_DIR/backend"
   if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
     nohup uv run cli.py "${EXTRA_ARGS[@]}" >"$LOG_FILE" 2>&1 &
   else
@@ -54,6 +56,7 @@ start_background() {
 }
 
 stop_server() {
+  cd "$SCRIPT_DIR/backend"
   local pid
   if [[ -f "$PID_FILE" ]]; then
     pid=$(cat "$PID_FILE")
@@ -75,19 +78,27 @@ stop_server() {
   kill_port
 }
 
+build_frontend() {
+  echo "Building frontend project..."
+  cd "$SCRIPT_DIR/frontend"
+  yarn install
+  yarn run build
+}
+
 usage() {
-  echo "Usage: $0 {run|start|stop} [args...]"
+  echo "Usage: $0 {run|start|stop|build} [args...]"
   echo "  所有 [args...] 直接传递给 cli.py，例如 --port 5002"
   echo "  run   前台运行（启动前清理目标端口进程，默认 5001）"
   echo "  start 后台运行（启动前清理目标端口进程）"
   echo "  stop  停止进程（优先使用PID文件，否则按端口清理；支持 --port）"
+  echo "  build 编译frontend工程"
 }
 
 ARGS=("$@")
 subcmd="run"
 if ((${#ARGS[@]})); then
   case "${ARGS[0]}" in
-    run|start|stop)
+    run|start|stop|build)
       subcmd="${ARGS[0]}"
       EXTRA_ARGS=("${ARGS[@]:1}")
       ;;
@@ -124,5 +135,8 @@ case "$subcmd" in
     ;;
   run)
     run_foreground
+    ;;
+  build)
+    build_frontend
     ;;
 esac

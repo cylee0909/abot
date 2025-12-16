@@ -1,11 +1,15 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from datetime import date, timedelta
+from pathlib import Path
 from app.db import init_tables, get_companies_with_details
 from app.db.companies import get_company_by_code
 from app.db.stock_history import get_history as get_stock_history
 
+DIST_DIR = (Path(__file__).resolve().parents[2] / 'frontend' / 'dist')
+ASSETS_DIR = DIST_DIR / 'assets'
+
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=str(DIST_DIR))
     init_tables()
 
     @app.after_request
@@ -40,6 +44,36 @@ def create_app():
         code = stock_code.split('.')[:1][0]
         data = get_stock_history(code, start_date=start, end_date=end, limit=limit)
         return jsonify({'data': data, 'count': len(data)})
+
+    @app.route('/', methods=['GET'])
+    def index():
+        resp = send_file(Path(app.static_folder) / 'index.html')
+        resp.headers['Cache-Control'] = 'no-cache'
+        return resp
+
+    @app.route('/assets/<path:filename>', methods=['GET'])
+    def assets(filename):
+        p = ASSETS_DIR / filename
+        if not p.is_file():
+            return jsonify({'error': 'not found'}), 404
+        resp = send_file(p)
+        resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        return resp
+
+    @app.route('/<path:path>', methods=['GET'])
+    def spa_fallback(path):
+        p = Path(app.static_folder) / path
+        if p.is_file():
+            if p.suffix == '.html':
+                resp = send_file(p)
+                resp.headers['Cache-Control'] = 'no-cache'
+                return resp
+            resp = send_file(p)
+            resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            return resp
+        resp = send_file(Path(app.static_folder) / 'index.html')
+        resp.headers['Cache-Control'] = 'no-cache'
+        return resp
 
     return app
 

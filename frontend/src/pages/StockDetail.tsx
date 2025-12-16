@@ -10,23 +10,54 @@ export default function StockDetail() {
   const [baseData, setBaseData] = useState<DataSeries>(new DataSeries())
   const [data, setData] = useState<DataSeries>(new DataSeries())
   const [info, setInfo] = useState<StockInfo>(new StockInfo())
+  const [companies, setCompanies] = useState<any[]>([])
+  const [selectedStock, setSelectedStock] = useState<string>('')
+
+  // 获取所有股票列表
+  const fetchCompanies = async () => {
+    try {
+      const res = await getCompanies()
+      if (res?.data) {
+        setCompanies(res.data)
+        return res.data
+      }
+    } catch (error) {
+      console.error('获取股票列表失败:', error)
+    }
+    return []
+  }
+
+  // 获取单个股票详情
+  const fetchStockDetail = async (securityCode: string) => {
+    try {
+      const company = await getCompany(securityCode)
+      const history = await getHistory(securityCode)
+
+      const hist = Array.isArray(history?.data) ? history.data : []
+      const series = DataSeries.fromHistory(hist)
+      setBaseData(series)
+      setData(series)
+      setInfo(StockInfo.from(company, hist))
+    } catch (error) {
+      console.error('获取股票详情失败:', error)
+    }
+  }
+
+  // 选中股票处理
+  const handleStockSelect = (securityCode: string) => {
+    setSelectedStock(securityCode)
+    fetchStockDetail(securityCode)
+  }
 
   useEffect(() => {
     ;(async () => {
       try {
-        const companies = await getCompanies()
-        const first = companies?.data?.[0]
+        const companiesList = await fetchCompanies()
+        const first = companiesList?.[0]
         const securityCode = first?.security_code
         if (!securityCode) return
-        const company = await getCompany(securityCode)
-        const history = await getHistory(securityCode)
-
-        const hist = Array.isArray(history?.data) ? history.data : []
-        const series = DataSeries.fromHistory(hist)
-        setBaseData(series)
-        setData(series)
-
-        setInfo(StockInfo.from(company, hist))
+        setSelectedStock(securityCode)
+        fetchStockDetail(securityCode)
       } catch (_) {
         // 保持静默，使用默认值
       }
@@ -153,51 +184,70 @@ export default function StockDetail() {
   }, [timeframe, data])
 
   return (
-    <div className="stock-detail">
-      <header className="sd-header">
-        <div className="sd-title">
-          <div className="sd-code">{info.name}（{info.code}）</div>
-          <div className={`sd-price ${info.change >= 0 ? 'up' : 'down'}`}>{info.price.toFixed(2)}</div>
-          <div className={`sd-change ${info.change >= 0 ? 'up' : 'down'}`}>
-            {info.change.toFixed(2)} {info.changePct.toFixed(2)}%
+    <div className="stock-detail-container">
+      {/* 左侧股票列表 */}
+      <aside className="stock-list">
+        <h3 className="stock-list-title">股票列表</h3>
+        <div className="stock-list-content">
+          {companies.map((stock) => (
+            <div
+              key={stock.security_code}
+              className={`stock-item ${selectedStock === stock.security_code ? 'active' : ''}`}
+              onClick={() => handleStockSelect(stock.security_code)}
+            >
+              <div className="stock-item-name">{stock.security_name_abbr}</div>
+              <div className="stock-item-code">{stock.security_code}</div>
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      {/* 右侧股票详情 */}
+      <main className="stock-detail">
+        <header className="sd-header">
+          <div className="sd-title">
+            <div className="sd-code">{info.name}（{info.code}）</div>
+            <div className={`sd-price ${info.change >= 0 ? 'up' : 'down'}`}>{info.price.toFixed(2)}</div>
+            <div className={`sd-change ${info.change >= 0 ? 'up' : 'down'}`}>
+              {info.change.toFixed(2)} {info.changePct.toFixed(2)}%
+            </div>
           </div>
-        </div>
-        <div className="sd-actions">
-          <button className="sd-btn ghost">加自选</button>
-        </div>
-      </header>
+          <div className="sd-actions">
+            <button className="sd-btn ghost">加自选</button>
+          </div>
+        </header>
 
-      <section className="sd-stats">
-        {(Number(info.high) > 0) && <div className="sd-stat"><span>最高</span><b>{Number(info.high).toFixed(2)}</b></div>}
-        {(Number(info.low) > 0) && <div className="sd-stat"><span>最低</span><b>{Number(info.low).toFixed(2)}</b></div>}
-        {(Number(info.open) > 0) && <div className="sd-stat"><span>今开</span><b>{Number(info.open).toFixed(2)}</b></div>}
-        {(Number(info.prevClose) > 0) && <div className="sd-stat"><span>昨收</span><b>{Number(info.prevClose).toFixed(2)}</b></div>}
-        {(Number(info.volume) > 0) && <div className="sd-stat"><span>成交量</span><b>{formatNumber(Number(info.volume))}股</b></div>}
-        {(Number(info.turnover) > 0) && <div className="sd-stat"><span>成交额</span><b>{formatNumber(Number(info.turnover))}元</b></div>}
-        {(Number(info.pe) > 0) && <div className="sd-stat"><span>市盈率(TTM)</span><b>{info.pe}</b></div>}
-        {(Number(info.pb) > 0) && <div className="sd-stat"><span>市净率</span><b>{info.pb}</b></div>}
-        {(Number(info.mcap) > 0) && <div className="sd-stat"><span>总市值</span><b>{formatNumber(Number(info.mcap))}</b></div>}
-        {(Number(info.floatMcap) > 0) && <div className="sd-stat"><span>港股市值</span><b>{formatNumber(Number(info.floatMcap))}</b></div>}
-        {(Number(info.turnoverRate) > 0) && <div className="sd-stat"><span>换手</span><b>{Number(info.turnoverRate)}%</b></div>}
-        {(Number(info.amplitude) > 0) && <div className="sd-stat"><span>振幅</span><b>{info.amplitude}%</b></div>}
-        {(info.currency && info.currency !== '未知') && <div className="sd-stat"><span>货币单位</span><b>{info.currency}</b></div>}
-      </section>
+        <section className="sd-stats">
+          {(Number(info.high) > 0) && <div className="sd-stat"><span>最高</span><b>{Number(info.high).toFixed(2)}</b></div>}
+          {(Number(info.low) > 0) && <div className="sd-stat"><span>最低</span><b>{Number(info.low).toFixed(2)}</b></div>}
+          {(Number(info.open) > 0) && <div className="sd-stat"><span>今开</span><b>{Number(info.open).toFixed(2)}</b></div>}
+          {(Number(info.prevClose) > 0) && <div className="sd-stat"><span>昨收</span><b>{Number(info.prevClose).toFixed(2)}</b></div>}
+          {(Number(info.volume) > 0) && <div className="sd-stat"><span>成交量</span><b>{formatNumber(Number(info.volume))}股</b></div>}
+          {(Number(info.turnover) > 0) && <div className="sd-stat"><span>成交额</span><b>{formatNumber(Number(info.turnover))}元</b></div>}
+          {(Number(info.pe) > 0) && <div className="sd-stat"><span>市盈率(TTM)</span><b>{info.pe}</b></div>}
+          {(Number(info.pb) > 0) && <div className="sd-stat"><span>市净率</span><b>{info.pb}</b></div>}
+          {(Number(info.mcap) > 0) && <div className="sd-stat"><span>总市值</span><b>{formatNumber(Number(info.mcap))}</b></div>}
+          {(Number(info.floatMcap) > 0) && <div className="sd-stat"><span>港股市值</span><b>{formatNumber(Number(info.floatMcap))}</b></div>}
+          {(Number(info.turnoverRate) > 0) && <div className="sd-stat"><span>换手</span><b>{Number(info.turnoverRate)}%</b></div>}
+          {(Number(info.amplitude) > 0) && <div className="sd-stat"><span>振幅</span><b>{info.amplitude}%</b></div>}
+          {(info.currency && info.currency !== '未知') && <div className="sd-stat"><span>货币单位</span><b>{info.currency}</b></div>}
+        </section>
 
-      <section className="sd-toolbar">
-        {(['日K', '周K', '月K'] as Timeframe[]).map((t) => (
-          <span
-            key={t}
-            className={`sd-tab ${timeframe === t ? 'active' : ''}`}
-            onClick={() => setTimeframe(t)}
-          >
-            {t}
-          </span>
-        ))}
-        <div className="sd-spacer" />
+        <section className="sd-toolbar">
+          {(['日K', '周K', '月K'] as Timeframe[]).map((t) => (
+            <span
+              key={t}
+              className={`sd-tab ${timeframe === t ? 'active' : ''}`}
+              onClick={() => setTimeframe(t)}
+            >
+              {t}
+            </span>
+          ))}
+          <div className="sd-spacer" />
+        </section>
 
-      </section>
-
-      <section className="sd-chart" ref={chartRef} />
+        <section className="sd-chart" ref={chartRef} />
+      </main>
     </div>
   )
 }

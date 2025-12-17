@@ -296,6 +296,69 @@ class StockDownloader:
             print(f"获取股票信息时出错: {str(e)}")
             return None
     
+    async def get_stock_chip_distribution(self, stock_code: str) -> Optional[pd.DataFrame]:
+        """
+        获取股票筹码分布数据
+        
+        Args:
+            stock_code: 股票代码 如 600519 或 600519.SH
+            
+        Returns:
+            筹码分布数据DataFrame，包含以下字段：
+            - 日期 (date)
+            - 获利比例 (profit_ratio)
+            - 平均成本 (avg_cost)
+            - 90%筹码集中度 (concentration_90)
+            - 70%筹码集中度 (concentration_70)
+        """
+        try:
+            logger.info(f"正在获取 {stock_code} 筹码分布数据")
+            
+            # 解析股票代码
+            market, stock_code = self._get_market_and_code(stock_code)
+            
+            # 使用akshare的stock_cyq_em接口获取筹码分布数据
+            df = await self._run_sync(
+                ak.stock_cyq_em,
+                symbol=stock_code
+            )
+            
+            if df is None or df.empty:
+                logger.error(f"未获取到 {stock_code} 筹码分布数据")
+                return None
+            
+            logger.info(f"成功获取 {stock_code} 筹码分布数据，数据行数: {len(df)}")
+            logger.info(f"筹码分布数据列: {list(df.columns)}")
+            
+            # 重命名列名，确保格式统一
+            column_mapping = {
+                '日期': 'date',
+                '获利比例': 'profit_ratio',
+                '平均成本': 'avg_cost',
+                '90集中度': 'concentration_90',
+                '70集中度': 'concentration_70'
+            }
+            
+            # 只保留需要的列
+            df = df.rename(columns=column_mapping)
+            # 选择需要的列
+            df = df[['date', 'profit_ratio', 'avg_cost', 'concentration_90', 'concentration_70']]
+            
+            # 转换日期格式
+            if not df.empty and isinstance(df['date'].iloc[0], str):
+                df['date'] = pd.to_datetime(df['date'])
+            
+            # 按日期排序
+            if not df.empty:
+                df = df.sort_values('date')
+            
+            return df
+        except Exception as e:
+            logger.error(f"获取 {stock_code} 筹码分布数据失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
     async def batch_get_stock_data(self, stock_codes: List[str], start_date: str, end_date: str) -> List[pd.DataFrame]:
         """
         批量获取股票历史数据
@@ -337,5 +400,12 @@ if __name__ == "__main__":
         print(f"获取到 {len(df)} 条贵州茅台历史数据")
         if not df.empty:
             print(df.head())
+        
+        # 测试筹码分布接口
+        chip_df = await downloader.get_stock_chip_distribution('600519.SH')
+        print(f"\n获取到 {len(chip_df) if chip_df is not None else 0} 条贵州茅台筹码分布数据")
+        if chip_df is not None and not chip_df.empty:
+            print(chip_df.head())
+            print(chip_df.tail())
     
     asyncio.run(test_downloader())

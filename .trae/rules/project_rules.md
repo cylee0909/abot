@@ -2,7 +2,7 @@
 
 ## 前端技术栈
 - 框架：`React ^19.2.0`
-- 构建与开发：`Vite ^7.2.4`、`@vitejs/plugin-react ^5.1.1`
+- 构建与开发：`Vite ^7.2.4`、`@vitejs/plugin-react ^5.1.1` 、`yarn`
 - 语言：`JavaScript (JSX)`（当前代码为 `.jsx`，未使用 TypeScript）
 - 可视化：`ECharts ^6.0.0`
 - 代码质量：`ESLint ^9.39.1`、`@eslint/js`、`eslint-plugin-react-hooks`、`eslint-plugin-react-refresh`

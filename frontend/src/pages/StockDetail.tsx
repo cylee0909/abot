@@ -3,8 +3,9 @@ import * as echarts from 'echarts'
 import './StockDetail.css'
 import StockList from './StockList'
 import SelectGroupModal from './SelectGroupModal'
-import { calcMA, calcMACD, DataSeries, formatNumber, resample, StockInfo, type Timeframe } from '../models/stock'
-import { getCompany, getHistory } from '../api/companies'
+import PatternSelector from './PatternSelector'
+import { calcMA, calcMACD, DataSeries, formatNumber, resample, StockInfo, type Timeframe, type PatternResult } from '../models/stock'
+import { getCompany, getHistory, getPatterns } from '../api/companies'
 
 export default function StockDetail() {
   const chartRef = useRef<HTMLDivElement | null>(null)
@@ -12,23 +13,56 @@ export default function StockDetail() {
   const [baseData, setBaseData] = useState<DataSeries>(new DataSeries())
   const [data, setData] = useState<DataSeries>(new DataSeries())
   const [info, setInfo] = useState<StockInfo>(new StockInfo())
+  const [patterns, setPatterns] = useState<PatternResult | null>(null)
   const [selectedStock, setSelectedStock] = useState<string>('')
   const [isSelectGroupModalVisible, setIsSelectGroupModalVisible] = useState(false)
+  const [showPatternSelect, setShowPatternSelect] = useState(false)
+  const [selectedPatterns, setSelectedPatterns] = useState<string[]>([])
+  const [hasRequestedPatterns, setHasRequestedPatterns] = useState(false)
 
   // 获取单个股票详情
   const fetchStockDetail = async (securityCode: string) => {
     try {
       const company = await getCompany(securityCode)
-      const history = await getHistory(securityCode)
+      
+      // 定义时间区间参数，默认获取最近3年数据
+      const timeParams = {
+        limit: 1095, // 默认获取3年数据
+        days: 30     // 默认检测最近30天的形态
+      }
+      
+      const history = await getHistory(securityCode, timeParams)
 
       const hist = Array.isArray(history?.data) ? history.data : []
       const series = DataSeries.fromHistory(hist)
       setBaseData(series)
       setData(series)
+      // 不在这里请求形态数据，只有点击形态选择按钮时才请求
+      // setPatterns(patterns)
 
       setInfo(StockInfo.from(company, hist))
+      // 重置形态数据和请求状态
+      setPatterns(null)
+      setHasRequestedPatterns(false)
     } catch (error) {
       console.error('获取股票详情失败:', error)
+    }
+  }
+
+  // 请求形态数据
+  const fetchPatterns = async () => {
+    if (!selectedStock || hasRequestedPatterns) return
+    
+    try {
+      const timeParams = {
+        limit: 1095,
+        days: 1095
+      }
+      const patterns = await getPatterns(selectedStock, timeParams)
+      setPatterns(patterns)
+      setHasRequestedPatterns(true)
+    } catch (error) {
+      console.error('获取形态数据失败:', error)
     }
   }
 
@@ -45,6 +79,23 @@ export default function StockDetail() {
   useEffect(() => {
     setData(resample(baseData, timeframe))
   }, [timeframe, baseData])
+
+  // 点击外部区域关闭形态选择弹框
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const button = document.querySelector('.pattern-select-btn');
+      const dropdown = document.querySelector('.pattern-select-dropdown');
+      
+      if (button && dropdown && showPatternSelect && !button.contains(event.target as Node) && !dropdown.contains(event.target as Node)) {
+        setShowPatternSelect(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showPatternSelect]);
 
   useEffect(() => {
     const el = chartRef.current
@@ -72,6 +123,48 @@ export default function StockDetail() {
       start = Math.max(0, 100 - (showMonths / dataLength) * 100);
     }
     
+    // 准备形态标记数据
+    const patternMarkers: Array<{ name: string; x: number; y: number; symbol: string; color: string; text: string; direction: string }> = [];
+    if (patterns?.patterns && selectedPatterns.length > 0) {
+      patterns.patterns.forEach(pattern => {
+        // 只显示被选中的形态
+        if (selectedPatterns.includes(pattern.chinese_name)) {
+          // 找到对应日期在data.dates中的索引
+          const index = data.dates.indexOf(pattern.date);
+          if (index !== -1) {
+            const klineData = data.ohlc[index];
+            const high = klineData[3]; // OHLC数组中的high是第四个元素（索引3）
+            const low = klineData[2]; // OHLC数组中的low是第三个元素（索引2）
+            
+            // 根据形态方向设置标记位置和样式
+            if (pattern.direction === 'bullish') {
+              // 看涨形态标记在上方
+              patternMarkers.push({
+                name: pattern.chinese_name,
+                x: index,
+                y: high,
+                symbol: 'triangle',
+                color: '#ef5350',
+                text: '↑',
+                direction: pattern.direction
+              });
+            } else {
+              // 看跌形态标记在下方
+              patternMarkers.push({
+                name: pattern.chinese_name,
+                x: index,
+                y: low,
+                symbol: 'triangle',
+                color: '#26a69a',
+                text: '↓',
+                direction: pattern.direction
+              });
+            }
+          }
+        }
+      });
+    }
+    
     const option = {
       animation: false,
       backgroundColor: '#fff',
@@ -91,6 +184,15 @@ export default function StockDetail() {
               <div>高: ${kline.data[2].toFixed(2)}</div>
               <div>低: ${kline.data[3].toFixed(2)}</div>
             `;
+          }
+          
+          // 查找形态标记
+          const patternMarkers = params.filter(p => p.seriesName === '形态标记');
+          if (patternMarkers.length > 0) {
+            html += '<div style="margin-top: 4px; font-weight: bold; color: #757575;">K线形态:</div>';
+            patternMarkers.forEach(marker => {
+              html += `<div style="color: ${marker.color}">${marker.data.name}</div>`;
+            });
           }
           
           // 查找成交量数据
@@ -142,6 +244,25 @@ export default function StockDetail() {
         { name: 'MA10', type: 'line', data: calcMA(10, data.ohlc), smooth: true, symbol: 'none' },
         { name: 'MA20', type: 'line', data: calcMA(20, data.ohlc), smooth: true, symbol: 'none' },
         { name: 'MA60', type: 'line', data: calcMA(60, data.ohlc), smooth: true, symbol: 'none' },
+        // 添加形态标记系列
+        { 
+          name: '形态标记',
+          type: 'scatter',
+          data: patternMarkers.map(marker => ({
+            name: marker.name,
+            value: [marker.x, marker.y],
+            itemStyle: {
+              color: marker.color,
+            },
+            symbolSize: 12,
+            symbol: marker.symbol,
+            symbolRotate: marker.direction === 'bullish' ? 0 : 180,
+          })),
+          tooltip: {
+            formatter: '{b}'
+          },
+          z: 10
+        },
         { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: data.volumes },
         { name: 'DIF', type: 'line', xAxisIndex: 2, yAxisIndex: 2, data: dif, symbol: 'none' },
         { name: 'DEA', type: 'line', xAxisIndex: 2, yAxisIndex: 2, data: dea, symbol: 'none' },
@@ -159,7 +280,7 @@ export default function StockDetail() {
       window.removeEventListener('resize', onResize)
       chart.dispose()
     }
-  }, [timeframe, data])
+  }, [timeframe, data, patterns, selectedPatterns])
 
   return (
     <div className="stock-detail-container">
@@ -213,6 +334,25 @@ export default function StockDetail() {
             </span>
           ))}
           <div className="sd-spacer" />
+          <PatternSelector
+            patterns={patterns}
+            selectedPatterns={selectedPatterns}
+            onPatternSelect={(patternName, isSelected) => {
+              if (isSelected) {
+                setSelectedPatterns([...selectedPatterns, patternName]);
+              } else {
+                setSelectedPatterns(selectedPatterns.filter(p => p !== patternName));
+              }
+            }}
+            showPatternSelect={showPatternSelect}
+            onTogglePatternSelect={() => {
+              setShowPatternSelect(!showPatternSelect);
+              // 如果是打开弹窗，并且还没有请求过形态数据，则请求
+              if (!showPatternSelect && !hasRequestedPatterns) {
+                fetchPatterns();
+              }
+            }}
+          />
         </section>
 
         <section className="sd-chart" ref={chartRef} />

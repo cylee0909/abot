@@ -26,6 +26,19 @@ export interface HistoryBar {
   amount?: number
 }
 
+export interface PatternItem {
+  date: string
+  pattern: string
+  chinese_name: string
+  value: number
+  direction: 'bullish' | 'bearish'
+}
+
+export interface PatternResult {
+  latest_date: string | null
+  patterns: PatternItem[]
+}
+
 export class DataSeries {
   dates: string[]
   ohlc: OHLC[]

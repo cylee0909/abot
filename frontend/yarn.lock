@@ -358,6 +358,11 @@
     "@eslint/core" "^0.17.0"
     levn "^0.4.1"
 
+"@heroicons/react@^2.2.0":
+  version "2.2.0"
+  resolved "https://registry.npmmirror.com/@heroicons/react/-/react-2.2.0.tgz"
+  integrity sha512-LMcepvRaS9LYHJGsF0zzmgKCUim/X3N/DQKc4jepAXJ7l8QxJ1PmxJzqplF2Z3FE4PqBAIGyJAQ/w4B5dsqbtQ==
+
 "@humanfs/core@^0.19.1":
   version "0.19.1"
   resolved "https://registry.npmmirror.com/@humanfs/core/-/core-0.19.1.tgz"
@@ -1274,6 +1279,11 @@ supports-color@^7.1.0:
   integrity sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==
   dependencies:
     has-flag "^4.0.0"
+
+ta-lib@^0.11.0:
+  version "0.11.0"
+  resolved "https://registry.npmmirror.com/ta-lib/-/ta-lib-0.11.0.tgz"
+  integrity sha512-QY2/fPe8d1j++peFOVMBCDLP0WRz4YF9/zQ/u/KsOfYlOS12sOD2+I0DzzfKwnFGapJ20dpt7coATM+BFbEpFg==
 
 tinyglobby@^0.2.15:
   version "0.2.15"

@@ -1,6 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
 import * as echarts from 'echarts'
 import './StockDetail.css'
+
+// 自定义tooltip样式
+const tooltipStyle = `
+  .echarts-tooltip-multiple {
+    background: transparent;
+    border: none;
+    color: #333;
+    padding: 0;
+    border-radius: 0;
+    position: absolute;
+    pointer-events: none;
+    z-index: 1000;
+    font-size: 12px;
+    box-shadow: none;
+  }
+`
 import StockList from './StockList'
 import SelectGroupModal from './SelectGroupModal'
 import PatternSelector from './PatternSelector'
@@ -201,22 +217,8 @@ export default function StockDetail() {
       },
       tooltip: {
         trigger: 'axis',
-        position: ['0px', '0px'], // 调整位置到左上角边缘
-        formatter: function(params) {
-          let html = `均线 `;
-          
-          // 简化MA线数据显示逻辑
-          const maLines = ['MA5', 'MA10', 'MA20', 'MA60'];
-          maLines.forEach(maLine => {
-            const maData = params.find(p => p.seriesName === maLine);
-            if (maData) {
-              const color = MA_CONFIG.colors[maLine as keyof typeof MA_CONFIG.colors];
-              html += `<span style="color: ${color};">${maLine}:${maData.data.toFixed(2)} </span>`;
-            }
-          });
-          
-          return html;
-        },
+        triggerOn: 'none', // 关闭默认触发，手动控制
+        position: ['0px', '0px'],
         backgroundColor: 'transparent',
         borderWidth: 0,
         textStyle: {
@@ -325,15 +327,128 @@ export default function StockDetail() {
 
     chart.setOption(option)
     
+    // 获取图表容器的位置信息
+    const getChartContainerRect = () => {
+      const container = chartRef.current;
+      if (!container) return { left: 0, top: 0 };
+      return container.getBoundingClientRect();
+    };
+    
+    // 创建并更新Tooltip
+    const createOrUpdateTooltip = (id: string, content: string, left: number, top: number) => {
+      let tooltip = document.getElementById(id);
+      if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = id;
+        tooltip.className = 'echarts-tooltip-multiple';
+        tooltip.style.position = 'fixed'; // 使用fixed定位，相对于视口
+        tooltip.style.pointerEvents = 'none';
+        tooltip.style.zIndex = '1000';
+        document.body.appendChild(tooltip);
+      }
+      tooltip.innerHTML = content;
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+    };
+    
+    // 清除Tooltip
+    const clearTooltips = () => {
+      ['kline-tooltip', 'volume-tooltip', 'macd-tooltip'].forEach(id => {
+        const tooltip = document.getElementById(id);
+        if (tooltip) {
+          document.body.removeChild(tooltip);
+        }
+      });
+    };
+    
+    // 更新Tooltip内容的函数
+    const updateTooltips = (dataIndex: number) => {
+      const rect = getChartContainerRect();
+      
+      // K线区域的Tooltip - 显示在图表容器内的左上角
+      let klineHtml = '均线 ';
+      const maLines = ['MA5', 'MA10', 'MA20', 'MA60'];
+      maLines.forEach(maLine => {
+        const maValue = maData[maLine as keyof typeof maData][dataIndex];
+        if (maValue && typeof maValue === 'number') {
+          const color = MA_CONFIG.colors[maLine as keyof typeof MA_CONFIG.colors];
+          klineHtml += `<span style="color: ${color};">${maLine}:${maValue.toFixed(2)} </span>`;
+        }
+      });
+      createOrUpdateTooltip('kline-tooltip', klineHtml, rect.left + 50, rect.top + 10);
+      
+      // 成交量区域的Tooltip
+      const volumeValue = data.volumes[dataIndex];
+      createOrUpdateTooltip('volume-tooltip', `成交量: ${formatNumber(volumeValue)}`, rect.left + 50, rect.top + 270);
+      
+      // MACD区域的Tooltip
+      const difValue = dif[dataIndex] || 0;
+      const deaValue = dea[dataIndex] || 0;
+      const macdValue = macd[dataIndex] || 0;
+      createOrUpdateTooltip('macd-tooltip', `MACD: DIF:${difValue.toFixed(2)} DEA:${deaValue.toFixed(2)} MACD:${macdValue.toFixed(2)}`, rect.left + 50, rect.top + 370);
+    };
+    
+    // 监听鼠标移动，更新Tooltip内容
+    let currentDataIndex = Math.max(0, data.dates.length - 1); // 默认显示最后一个数据
+    updateTooltips(currentDataIndex); // 初始显示
+    
+    // 使用chart.getZr()监听整个画布的鼠标移动事件，确保在任何位置都能触发
+    chart.getZr().on('mousemove', (event) => {
+      // 将鼠标像素坐标转换为图表坐标系中的数据坐标
+      const pointInPixel = [event.offsetX, event.offsetY];
+      
+      // 转换为数据坐标，第一个参数是坐标系ID或索引，这里使用X轴索引0
+      const pointInGrid = chart.convertFromPixel({ seriesIndex: 0, xAxisIndex: 0 }, pointInPixel);
+      
+      // 获取X轴数据索引
+      if (pointInGrid && pointInGrid[0] !== undefined) {
+        // 使用X轴数据索引
+        let dataIndex = Math.round(pointInGrid[0]);
+        
+        // 确保索引在有效范围内
+        dataIndex = Math.max(0, Math.min(data.dates.length - 1, dataIndex));
+        
+        // 更新tooltip
+        if (dataIndex !== currentDataIndex) {
+          currentDataIndex = dataIndex;
+          updateTooltips(currentDataIndex);
+        }
+      }
+    });
+    
+    // 监听axisPointer移动，确保tooltip跟随十字光标
+    chart.on('axisPointermove', (params) => {
+      if (params.axisType === 'category' && params.axisIndex === 0) {
+        // 使用axisPointer提供的valueIndex作为dataIndex
+        const dataIndex = params.valueIndex !== undefined ? params.valueIndex : Math.round(params.value);
+        if (dataIndex !== undefined && dataIndex >= 0 && dataIndex < data.dates.length) {
+          currentDataIndex = dataIndex;
+          updateTooltips(currentDataIndex);
+        }
+      }
+    });
+    
     function onResize() {
-      chart.resize()
+      chart.resize();
+      updateTooltips(currentDataIndex); // 窗口大小变化时重新定位
     }
     window.addEventListener('resize', onResize)
     return () => {
-      window.removeEventListener('resize', onResize)
+      clearTooltips();
+      window.removeEventListener('resize', onResize);
       chart.dispose()
     }
   }, [timeframe, data, patterns, selectedPatterns])
+
+  // 添加样式标签
+  useEffect(() => {
+    const styleEl = document.createElement('style');
+    styleEl.textContent = tooltipStyle;
+    document.head.appendChild(styleEl);
+    return () => {
+      document.head.removeChild(styleEl);
+    };
+  }, []);
 
   return (
     <div className="stock-detail-container">

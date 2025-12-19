@@ -226,6 +226,7 @@ export function calcMACD(close: number[], fast = 12, slow = 26, signal = 9) {
   return { dif, dea, macd }
 }
 
-export function formatNumber(n: number): string {
-  return n >= 10000 ? `${(n / 10000).toFixed(2)}万` : n.toLocaleString()
+export function formatNumber(n: number | undefined | null): string {
+  const num = n || 0;
+  return num >= 10000 ? `${(num / 10000).toFixed(2)}万` : num.toLocaleString()
 }

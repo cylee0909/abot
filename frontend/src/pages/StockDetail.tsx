@@ -165,58 +165,64 @@ export default function StockDetail() {
       });
     }
     
+    // 定义MA线配置常量
+    const MA_CONFIG = {
+      common: {
+        type: 'line' as const,
+        smooth: true,
+        symbol: 'none' as const,
+        lineStyle: {
+          width: 1
+        }
+      },
+      colors: {
+        MA5: '#FFA500', 
+        MA10: '#1E90FF', 
+        MA20: '#9370DB',
+        MA60: '#093',
+        DIF: '#FF6B6B',
+        DEA: '#093'
+      }
+    };
+    
+    // 计算各均线数据
+    const maData = {
+      MA5: calcMA(5, data.ohlc),
+      MA10: calcMA(10, data.ohlc),
+      MA20: calcMA(20, data.ohlc),
+      MA60: calcMA(60, data.ohlc)
+    };
+    
     const option = {
       animation: false,
       backgroundColor: '#fff',
+      legend: {
+        show: false // 隐藏默认图例
+      },
       tooltip: {
         trigger: 'axis',
-        position: 'top',
+        position: ['0px', '0px'], // 调整位置到左上角边缘
         formatter: function(params) {
-          const date = params[0].axisValue;
-          let html = `<div style="padding: 8px;"><div><strong>${date}</strong></div>`;
+          let html = `均线 `;
           
-          // 查找 K 线数据
-          const kline = params.find(p => p.seriesName === 'K线');
-          if (kline) {
-            html += `
-              <div>开: ${kline.data[1].toFixed(2)}</div>
-              <div>收: ${kline.data[4].toFixed(2)}</div>
-              <div>高: ${kline.data[2].toFixed(2)}</div>
-              <div>低: ${kline.data[3].toFixed(2)}</div>
-            `;
-          }
+          // 简化MA线数据显示逻辑
+          const maLines = ['MA5', 'MA10', 'MA20', 'MA60'];
+          maLines.forEach(maLine => {
+            const maData = params.find(p => p.seriesName === maLine);
+            if (maData) {
+              const color = MA_CONFIG.colors[maLine as keyof typeof MA_CONFIG.colors];
+              html += `<span style="color: ${color};">${maLine}:${maData.data.toFixed(2)} </span>`;
+            }
+          });
           
-          // 查找形态标记
-          const patternMarkers = params.filter(p => p.seriesName === '形态标记');
-          if (patternMarkers.length > 0) {
-            html += '<div style="margin-top: 4px; font-weight: bold; color: #757575;">K线形态:</div>';
-            patternMarkers.forEach(marker => {
-              html += `<div style="color: ${marker.color}">${marker.data.name}</div>`;
-            });
-          }
-          
-          // 查找成交量数据
-          const volume = params.find(p => p.seriesName === '成交量');
-          if (volume) {
-            html += `<div>量: ${volume.data.toFixed(0)}手</div>`;
-          }
-          
-          // 查找 MACD 数据
-          const dif = params.find(p => p.seriesName === 'DIF');
-          const dea = params.find(p => p.seriesName === 'DEA');
-          const macdBar = params.find(p => p.seriesName === 'MACD');
-          if (dif && dea && macdBar) {
-            html += `
-              <div>DIF: ${dif.data.toFixed(4)}</div>
-              <div>DEA: ${dea.data.toFixed(4)}</div>
-              <div>MACD: ${macdBar.data.toFixed(4)}</div>
-            `;
-          }
-          
-          html += '</div>';
           return html;
         },
-        confine: true
+        backgroundColor: 'transparent',
+        borderWidth: 0,
+        textStyle: {
+          fontSize: 12,
+          lineHeight: 1.5
+        }
       },
       axisPointer: { link: [{ xAxisIndex: [0, 1, 2] }] },
       grid: [
@@ -239,11 +245,43 @@ export default function StockDetail() {
         { show: true, xAxisIndex: [0, 1, 2], top: 520, start: start, end: 100 },
       ],
       series: [
-        { name: 'K线', type: 'candlestick', data: data.ohlc },
-        { name: 'MA5', type: 'line', data: calcMA(5, data.ohlc), smooth: true, symbol: 'none' },
-        { name: 'MA10', type: 'line', data: calcMA(10, data.ohlc), smooth: true, symbol: 'none' },
-        { name: 'MA20', type: 'line', data: calcMA(20, data.ohlc), smooth: true, symbol: 'none' },
-        { name: 'MA60', type: 'line', data: calcMA(60, data.ohlc), smooth: true, symbol: 'none' },
+        { 
+          name: 'K线', 
+          type: 'candlestick', 
+          data: data.ohlc, 
+          itemStyle: { 
+            borderWidth: 1,
+            color: 'transparent', // 阳线空心
+            borderColor: '#ef5350', // 阳线上边框颜色
+            color0: '#093', // 阴线颜色
+            borderColor0: '#093' // 阴线下边框颜色
+          } 
+        },
+        // 简化MA线配置，使用常量和映射
+        { 
+          name: 'MA5', 
+          ...MA_CONFIG.common, 
+          data: maData.MA5,
+          lineStyle: { ...MA_CONFIG.common.lineStyle, color: MA_CONFIG.colors.MA5 }
+        },
+        { 
+          name: 'MA10', 
+          ...MA_CONFIG.common, 
+          data: maData.MA10,
+          lineStyle: { ...MA_CONFIG.common.lineStyle, color: MA_CONFIG.colors.MA10 }
+        },
+        { 
+          name: 'MA20', 
+          ...MA_CONFIG.common, 
+          data: maData.MA20,
+          lineStyle: { ...MA_CONFIG.common.lineStyle, color: MA_CONFIG.colors.MA20 }
+        },
+        { 
+          name: 'MA60', 
+          ...MA_CONFIG.common, 
+          data: maData.MA60,
+          lineStyle: { ...MA_CONFIG.common.lineStyle, color: MA_CONFIG.colors.MA60 }
+        },
         // 添加形态标记系列
         { 
           name: '形态标记',
@@ -264,14 +302,29 @@ export default function StockDetail() {
           z: 10
         },
         { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: data.volumes },
-        { name: 'DIF', type: 'line', xAxisIndex: 2, yAxisIndex: 2, data: dif, symbol: 'none' },
-        { name: 'DEA', type: 'line', xAxisIndex: 2, yAxisIndex: 2, data: dea, symbol: 'none' },
+        // 简化MACD相关线配置
+        { 
+          name: 'DIF', 
+          ...MA_CONFIG.common,
+          xAxisIndex: 2, 
+          yAxisIndex: 2, 
+          data: dif,
+          lineStyle: { ...MA_CONFIG.common.lineStyle, color: MA_CONFIG.colors.DIF }
+        },
+        { 
+          name: 'DEA', 
+          ...MA_CONFIG.common,
+          xAxisIndex: 2, 
+          yAxisIndex: 2, 
+          data: dea,
+          lineStyle: { ...MA_CONFIG.common.lineStyle, color: MA_CONFIG.colors.DEA }
+        },
         { name: 'MACD', type: 'bar', xAxisIndex: 2, yAxisIndex: 2, data: macd },
       ],
     }
 
     chart.setOption(option)
-
+    
     function onResize() {
       chart.resize()
     }

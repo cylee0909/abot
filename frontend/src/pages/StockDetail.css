@@ -46,7 +46,7 @@ html, body {
 .sd-price { font-size: 24px; font-weight: 700; }
 .sd-change { font-size: 14px; }
 .sd-price.up, .sd-change.up { color: #e64a3b; }
-.sd-price.down, .sd-change.down { color: #06c167; }
+.sd-price.down, .sd-change.down { color: #093; }
 .sd-actions { display: flex; gap: 8px; }
 .sd-btn { padding: 6px 16px; border-radius: 4px; border: 1px solid #0f78ff; background: #0f78ff; color: #fff; font-size: 14px; user-select: none; }
 .sd-btn.ghost { background: #fff; color: #0f78ff; }

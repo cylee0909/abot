@@ -196,8 +196,8 @@ export default function StockDetail() {
         MA10: '#1E90FF', 
         MA20: '#9370DB',
         MA60: '#093',
-        DIF: '#FF6B6B',
-        DEA: '#093'
+        DIF: '#FFA500',
+        DEA: '#1E90FF'
       }
     };
     
@@ -215,17 +215,61 @@ export default function StockDetail() {
       legend: {
         show: false // 隐藏默认图例
       },
-      tooltip: {
-        trigger: 'axis',
-        triggerOn: 'none', // 关闭默认触发，手动控制
-        position: ['0px', '0px'],
-        backgroundColor: 'transparent',
-        borderWidth: 0,
-        textStyle: {
-          fontSize: 12,
-          lineHeight: 1.5
+      tooltip: [
+        // 标准tooltip - 用于显示开盘、收盘、最高、最低价
+        {
+          trigger: 'axis',
+          type: 'cross',
+          triggerOn: 'mousemove',
+          position: 'top',
+          formatter: function(params) {
+            // 只处理K线数据
+            const klineData = params.find(p => p.seriesName === 'K线');
+            if (klineData) {
+              // 获取数据索引
+              const dataIndex = klineData.dataIndex;
+              // 获取当前日期
+              const date = data.dates[dataIndex];
+              
+              // 正确获取OHLC值，klineData.data的格式为[open, close, low, high]
+              const open = klineData.data[1];
+              const close = klineData.data[2];
+              const low = klineData.data[3];
+              const high = klineData.data[4];
+              
+              // 计算涨跌额和涨跌幅
+              let change = 0;
+              let changePct = 0;
+              if (dataIndex > 0) {
+                // 获取前一天的收盘价
+                const prevClose = data.ohlc[dataIndex - 1][1];
+                change = close - prevClose;
+                changePct = (change / prevClose) * 100;
+              }
+              
+              // 确定涨跌颜色
+              const changeColor = change >= 0 ? '#ef5350' : '#093';
+              return `
+                <div style="font-weight: bold; margin-bottom: 5px;">${date}</div>
+                开盘: ${open.toFixed(2)}<br/>
+                收盘: ${close.toFixed(2)}<br/>
+                最低: ${low.toFixed(2)}<br/>
+                最高: ${high.toFixed(2)}<br/>
+                涨跌额: <span style="color: ${changeColor};">${change >= 0 ? '+' : ''}${change.toFixed(2)}</span><br/>
+                涨跌幅: <span style="color: ${changeColor};">${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%</span>
+              `;
+            }
+            return '';
+          },
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          borderWidth: 1,
+          borderColor: '#ccc',
+          textStyle: {
+            fontSize: 12,
+            color: '#333'
+          }
         }
-      },
+      ],
       axisPointer: { link: [{ xAxisIndex: [0, 1, 2] }] },
       grid: [
         { left: 50, right: 30, top: 30, height: 220 },
@@ -303,7 +347,43 @@ export default function StockDetail() {
           },
           z: 10
         },
-        { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: data.volumes },
+        { 
+          name: '成交量', 
+          type: 'bar', 
+          xAxisIndex: 1, 
+          yAxisIndex: 1, 
+          // 为每个数据点单独设置样式，避免默认颜色影响
+          data: data.volumes.map((volume, index) => {
+            const ohlc = data.ohlc[index];
+            const open = ohlc[0];
+            const close = ohlc[1];
+            
+            // 上涨K线：收盘价大于开盘价
+            if (close > open) {
+              return {
+                value: volume,
+                // 上涨：红色空心框
+                itemStyle: {
+                  color: '#ef5350', // 红色实心，避免边框问题
+                  borderColor: '#ef5350',
+                  borderWidth: 0
+                }
+              };
+            }
+            // 下跌K线：收盘价小于等于开盘价
+            else {
+              return {
+                value: volume,
+                // 下跌：绿色实心
+                itemStyle: {
+                  color: '#093', // 绿色实心
+                  borderColor: '#093',
+                  borderWidth: 0
+                }
+              };
+            }
+          })
+        },
         // 简化MACD相关线配置
         { 
           name: 'DIF', 
@@ -321,7 +401,28 @@ export default function StockDetail() {
           data: dea,
           lineStyle: { ...MA_CONFIG.common.lineStyle, color: MA_CONFIG.colors.DEA }
         },
-        { name: 'MACD', type: 'bar', xAxisIndex: 2, yAxisIndex: 2, data: macd },
+        { 
+          name: 'MACD', 
+          type: 'bar', 
+          xAxisIndex: 2, 
+          yAxisIndex: 2, 
+          data: macd,
+          barWidth: 1, // 设置柱宽为1px
+          itemStyle: {
+            // 根据MACD值设置颜色
+            color: function(params) {
+              const macdValue = params.data;
+              // 大于0为红色
+              if (macdValue > 0) {
+                return '#ef5350'; // 红色
+              }
+              // 小于0为绿色
+              else {
+                return '#093'; // 绿色
+              }
+            }
+          }
+        },
       ],
     }
 

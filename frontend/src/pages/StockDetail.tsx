@@ -249,6 +249,22 @@ export default function StockDetail() {
               
               // 确定涨跌颜色
               const changeColor = change >= 0 ? '#ef5350' : '#093';
+              
+              // 查找当前日期的形态数据
+              let patternHtml = '';
+              if (patterns?.patterns && patterns.patterns.length > 0) {
+                const dayPatterns = patterns.patterns.filter(pattern => pattern.date === date);
+                if (dayPatterns.length > 0) {
+                  patternHtml = '<div style="margin-top: 5px; padding-top: 5px; border-top: 1px solid #eee;">';
+                  patternHtml += '<div style="font-weight: bold; margin-bottom: 2px;">检测到的形态:</div>';
+                  dayPatterns.forEach(pattern => {
+                    const patternColor = pattern.direction === 'bullish' ? '#ef5350' : '#093';
+                    patternHtml += `<div style="color: ${patternColor};">${pattern.chinese_name} (${pattern.direction === 'bullish' ? '看涨' : '看跌'})</div>`;
+                  });
+                  patternHtml += '</div>';
+                }
+              }
+              
               return `
                 <div style="font-weight: bold; margin-bottom: 5px;">${date}</div>
                 开盘: ${open.toFixed(2)}<br/>
@@ -257,6 +273,7 @@ export default function StockDetail() {
                 最高: ${high.toFixed(2)}<br/>
                 涨跌额: <span style="color: ${changeColor};">${change >= 0 ? '+' : ''}${change.toFixed(2)}</span><br/>
                 涨跌幅: <span style="color: ${changeColor};">${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%</span>
+                ${patternHtml}
               `;
             }
             return '';

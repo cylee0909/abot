@@ -1,5 +1,5 @@
 import talib
-from app.custom_pattern import PatternDetector
+from app.custom_pattern import CustomPatternDetector
 
 class Pattern:
     """K线形态类，用于表示单个K线形态的信息和检测方法"""
@@ -18,7 +18,7 @@ class PatternDector:
         self.v = v
         
         # 初始化 PatternDetector 对象
-        self.pattern_detector = PatternDetector(o, h, l, c, v)
+        self.pattern_detector = CustomPatternDetector(o, h, l, c, v)
         
         # 创建所有形态对象
         self._create_patterns()

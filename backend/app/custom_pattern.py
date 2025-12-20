@@ -2,7 +2,7 @@ import talib
 import numpy as np
 import pandas as pd
 
-class PatternDetector:
+class CustomPatternDetector:
     def __init__(self, open_p, high_p, low_p, close_p, volume, limit_threshold=0.098):
         self.o = pd.Series(open_p)
         self.h = pd.Series(high_p)

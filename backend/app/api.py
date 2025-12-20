@@ -12,6 +12,7 @@ from app.db.stock_groups import (
     get_stocks_in_group_with_details, get_groups_for_stock
 )
 from app.kline_patterns import detect_kline_patterns, detect_latest_patterns
+from app.backtest import backtest_kline_patterns
 
 DIST_DIR = (Path(__file__).resolve().parents[2] / 'frontend' / 'dist')
 ASSETS_DIR = DIST_DIR / 'assets'
@@ -180,6 +181,33 @@ def create_app():
         
         # 检测K线形态
         results = detect_latest_patterns(history_data, days=days, patterns=patterns)
+        
+        return jsonify(results)
+    
+    @app.route('/backtest/<stock_code>', methods=['GET'])
+    def backtest_stock(stock_code):
+        # 获取股票历史数据
+        start = request.args.get('start')
+        end = request.args.get('end')
+        limit = request.args.get('limit', type=int, default=500)
+        
+        # 如果没有提供start参数，根据limit计算距今的日期作为start
+        if not start:
+            start = (date.today() - timedelta(days=limit)).strftime('%Y-%m-%d')
+        
+        # 获取要检测的形态列表
+        patterns_param = request.args.get('patterns')
+        patterns = None
+        if patterns_param:
+            # 分割逗号分隔的形态列表
+            patterns = [p.strip().upper() for p in patterns_param.split(',') if p.strip()]
+        
+        # 获取股票历史数据
+        code = stock_code.split('.')[:1][0]
+        history_data = get_stock_history(code, start_date=start, end_date=end, limit=limit)
+        
+        # 执行回测
+        results = backtest_kline_patterns(history_data, patterns=patterns)
         
         return jsonify(results)
 

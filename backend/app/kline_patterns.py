@@ -5,6 +5,7 @@ from typing import List, Dict, Any
 from .pattern_dector import PatternDector
 
 
+
 def detect_kline_patterns(stock_data: List[Dict[str, Any]], patterns: List[str] = None) -> Dict[str, Any]:
     """
     使用TA-Lib检测K线形态
@@ -62,6 +63,7 @@ def detect_kline_patterns(stock_data: List[Dict[str, Any]], patterns: List[str] 
     return results
 
 
+
 def detect_latest_patterns(stock_data: List[Dict[str, Any]], days: int = 30, patterns: List[str] = None) -> Dict[str, Any]:
     """
     检测最近指定天数内的K线形态
@@ -90,3 +92,6 @@ def detect_latest_patterns(stock_data: List[Dict[str, Any]], days: int = 30, pat
     # 更新结果
     all_results["patterns"] = filtered_patterns
     return all_results
+
+
+

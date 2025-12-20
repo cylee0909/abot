@@ -13,6 +13,7 @@
 - 配置管理：`pydantic-settings >= 2.12.0`
 - 数据库：`SQLite`（文件路径：`data/stock_history.db`）
 - 数据/网络相关：`AkShare == 1.16.99`、`pandas >= 2.3.3`、`numpy >= 2.2.6`、`aiohttp >= 3.13.2`；必要时使用 `requests` 获取雪球 `xq_a_token`
+- 测试用例 test目录
 - 使用uv 管理python包 和运行服务
 
 ## 端口与互通

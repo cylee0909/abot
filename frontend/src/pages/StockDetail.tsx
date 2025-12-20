@@ -2,29 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import * as echarts from 'echarts'
 import './StockDetail.css'
 
-// 自定义tooltip样式
-const tooltipStyle = `
-  .echarts-tooltip-multiple {
-    background: transparent;
-    border: none;
-    color: #333;
-    padding: 0;
-    border-radius: 0;
-    position: absolute;
-    pointer-events: none;
-    z-index: 1000;
-    font-size: 12px;
-    box-shadow: none;
-  }
-`
 import StockList from './StockList'
 import SelectGroupModal from './SelectGroupModal'
 import PatternSelector from './PatternSelector'
+import CustomTooltip from '../components/CustomTooltip'
 import { calcMA, calcMACD, DataSeries, formatNumber, resample, StockInfo, type Timeframe, type PatternResult } from '../models/stock'
 import { getCompany, getHistory, getPatterns } from '../api/companies'
 
 export default function StockDetail() {
   const chartRef = useRef<HTMLDivElement | null>(null)
+  const chartInstanceRef = useRef<any>(null) // 用于存储图表实例
   const [timeframe, setTimeframe] = useState<Timeframe>('日K')
   const [baseData, setBaseData] = useState<DataSeries>(new DataSeries())
   const [data, setData] = useState<DataSeries>(new DataSeries())
@@ -35,6 +22,37 @@ export default function StockDetail() {
   const [showPatternSelect, setShowPatternSelect] = useState(false)
   const [selectedPatterns, setSelectedPatterns] = useState<string[]>([])
   const [hasRequestedPatterns, setHasRequestedPatterns] = useState(false)
+  
+  // 用于存储图表相关数据，供CustomTooltip使用
+  const [chartData, setChartData] = useState({
+    maData: {
+      MA5: [],
+      MA10: [],
+      MA20: [],
+      MA60: []
+    },
+    dif: [],
+    dea: [],
+    macd: [],
+    MA_CONFIG: {
+      common: {
+        type: 'line',
+        smooth: true,
+        symbol: 'none',
+        lineStyle: {
+          width: 1
+        }
+      },
+      colors: {
+        MA5: '#FFA500', 
+        MA10: '#1E90FF', 
+        MA20: '#9370DB',
+        MA60: '#093',
+        DIF: '#FFA500',
+        DEA: '#1E90FF'
+      }
+    }
+  })
 
   // 获取单个股票详情
   const fetchStockDetail = async (securityCode: string) => {
@@ -117,6 +135,7 @@ export default function StockDetail() {
     const el = chartRef.current
     if (!el) return
     const chart = echarts.init(el)
+    chartInstanceRef.current = chart // 存储图表实例到ref中
 
     const close = data.ohlc.map((d) => d[1])
     const { dif, dea, macd } = calcMACD(close)
@@ -208,6 +227,15 @@ export default function StockDetail() {
       MA20: calcMA(20, data.ohlc),
       MA60: calcMA(60, data.ohlc)
     };
+    
+    // 更新chartData状态
+    setChartData({
+      maData,
+      dif,
+      dea,
+      macd,
+      MA_CONFIG
+    });
     
     const option = {
       animation: false,
@@ -445,128 +473,16 @@ export default function StockDetail() {
 
     chart.setOption(option)
     
-    // 获取图表容器的位置信息
-    const getChartContainerRect = () => {
-      const container = chartRef.current;
-      if (!container) return { left: 0, top: 0 };
-      return container.getBoundingClientRect();
-    };
-    
-    // 创建并更新Tooltip
-    const createOrUpdateTooltip = (id: string, content: string, left: number, top: number) => {
-      let tooltip = document.getElementById(id);
-      if (!tooltip) {
-        tooltip = document.createElement('div');
-        tooltip.id = id;
-        tooltip.className = 'echarts-tooltip-multiple';
-        tooltip.style.position = 'fixed'; // 使用fixed定位，相对于视口
-        tooltip.style.pointerEvents = 'none';
-        tooltip.style.zIndex = '1000';
-        document.body.appendChild(tooltip);
-      }
-      tooltip.innerHTML = content;
-      tooltip.style.left = `${left}px`;
-      tooltip.style.top = `${top}px`;
-    };
-    
-    // 清除Tooltip
-    const clearTooltips = () => {
-      ['kline-tooltip', 'volume-tooltip', 'macd-tooltip'].forEach(id => {
-        const tooltip = document.getElementById(id);
-        if (tooltip) {
-          document.body.removeChild(tooltip);
-        }
-      });
-    };
-    
-    // 更新Tooltip内容的函数
-    const updateTooltips = (dataIndex: number) => {
-      const rect = getChartContainerRect();
-      
-      // K线区域的Tooltip - 显示在图表容器内的左上角
-      let klineHtml = '均线 ';
-      const maLines = ['MA5', 'MA10', 'MA20', 'MA60'];
-      maLines.forEach(maLine => {
-        const maValue = maData[maLine as keyof typeof maData][dataIndex];
-        if (maValue && typeof maValue === 'number') {
-          const color = MA_CONFIG.colors[maLine as keyof typeof MA_CONFIG.colors];
-          klineHtml += `<span style="color: ${color};">${maLine}:${maValue.toFixed(2)} </span>`;
-        }
-      });
-      createOrUpdateTooltip('kline-tooltip', klineHtml, rect.left + 50, rect.top + 10);
-      
-      // 成交量区域的Tooltip
-      const volumeValue = data.volumes[dataIndex];
-      createOrUpdateTooltip('volume-tooltip', `成交量: ${formatNumber(volumeValue)}`, rect.left + 50, rect.top + 270);
-      
-      // MACD区域的Tooltip
-      const difValue = dif[dataIndex] || 0;
-      const deaValue = dea[dataIndex] || 0;
-      const macdValue = macd[dataIndex] || 0;
-      createOrUpdateTooltip('macd-tooltip', `MACD: DIF:${difValue.toFixed(2)} DEA:${deaValue.toFixed(2)} MACD:${macdValue.toFixed(2)}`, rect.left + 50, rect.top + 370);
-    };
-    
-    // 监听鼠标移动，更新Tooltip内容
-    let currentDataIndex = Math.max(0, data.dates.length - 1); // 默认显示最后一个数据
-    updateTooltips(currentDataIndex); // 初始显示
-    
-    // 使用chart.getZr()监听整个画布的鼠标移动事件，确保在任何位置都能触发
-    chart.getZr().on('mousemove', (event) => {
-      // 将鼠标像素坐标转换为图表坐标系中的数据坐标
-      const pointInPixel = [event.offsetX, event.offsetY];
-      
-      // 转换为数据坐标，第一个参数是坐标系ID或索引，这里使用X轴索引0
-      const pointInGrid = chart.convertFromPixel({ seriesIndex: 0, xAxisIndex: 0 }, pointInPixel);
-      
-      // 获取X轴数据索引
-      if (pointInGrid && pointInGrid[0] !== undefined) {
-        // 使用X轴数据索引
-        let dataIndex = Math.round(pointInGrid[0]);
-        
-        // 确保索引在有效范围内
-        dataIndex = Math.max(0, Math.min(data.dates.length - 1, dataIndex));
-        
-        // 更新tooltip
-        if (dataIndex !== currentDataIndex) {
-          currentDataIndex = dataIndex;
-          updateTooltips(currentDataIndex);
-        }
-      }
-    });
-    
-    // 监听axisPointer移动，确保tooltip跟随十字光标
-    chart.on('axisPointermove', (params) => {
-      if (params.axisType === 'category' && params.axisIndex === 0) {
-        // 使用axisPointer提供的valueIndex作为dataIndex
-        const dataIndex = params.valueIndex !== undefined ? params.valueIndex : Math.round(params.value);
-        if (dataIndex !== undefined && dataIndex >= 0 && dataIndex < data.dates.length) {
-          currentDataIndex = dataIndex;
-          updateTooltips(currentDataIndex);
-        }
-      }
-    });
-    
     function onResize() {
       chart.resize();
-      updateTooltips(currentDataIndex); // 窗口大小变化时重新定位
     }
     window.addEventListener('resize', onResize)
     return () => {
-      clearTooltips();
       window.removeEventListener('resize', onResize);
       chart.dispose()
+      chartInstanceRef.current = null // 清除图表实例引用
     }
   }, [timeframe, data, patterns, selectedPatterns])
-
-  // 添加样式标签
-  useEffect(() => {
-    const styleEl = document.createElement('style');
-    styleEl.textContent = tooltipStyle;
-    document.head.appendChild(styleEl);
-    return () => {
-      document.head.removeChild(styleEl);
-    };
-  }, []);
 
   return (
     <div className="stock-detail-container">
@@ -642,6 +558,19 @@ export default function StockDetail() {
         </section>
 
         <section className="sd-chart" ref={chartRef} />
+        
+        {/* 自定义Tooltip组件 - 仅在图表实例准备好后渲染 */}
+        {chartInstanceRef.current && (
+          <CustomTooltip 
+            chart={chartInstanceRef.current} 
+            data={data} 
+            maData={chartData.maData} 
+            dif={chartData.dif} 
+            dea={chartData.dea} 
+            macd={chartData.macd} 
+            MA_CONFIG={chartData.MA_CONFIG}
+          />
+        )}
       </main>
 
       {/* 选择分组弹窗 */}

@@ -4,55 +4,56 @@ import pandas as pd
 
 class PatternDetector:
     def __init__(self, open_p, high_p, low_p, close_p, volume, limit_threshold=0.098):
-        """
-        :param open_p: 开盘价 (Series/Array)
-        :param high_p: 最高价
-        :param low_p: 最低价
-        :param close_p: 收盘价
-        :param volume: 成交量
-        :param limit_threshold: 涨跌停阈值，默认0.098
-        """
-        # 统一转为 Pandas Series 以利用 shift/rolling 等便捷功能，计算时转 numpy
         self.o = pd.Series(open_p)
         self.h = pd.Series(high_p)
         self.l = pd.Series(low_p)
         self.c = pd.Series(close_p)
         self.v = pd.Series(volume)
-        self.idx = self.c.index
+        # 填充 NaN 避免计算中断
+        self.o.ffill(inplace=True)
+        self.h.ffill(inplace=True)
+        self.l.ffill(inplace=True)
+        self.c.ffill(inplace=True)
+        self.v.fillna(0, inplace=True)
+        
         self.n = len(self.c)
         self.limit_threshold = limit_threshold
-        
-        # === 预计算常用指标 (避免在每个函数中重复计算) ===
         self._precalculate_indicators()
 
     def _precalculate_indicators(self):
-        # 均线
-        self.ma5 = talib.SMA(self.c.values, 5)
-        self.ma10 = talib.SMA(self.c.values, 10)
-        self.ma20 = talib.SMA(self.c.values, 20)
-        self.ma30 = talib.SMA(self.c.values, 30)
-        self.ma60 = talib.SMA(self.c.values, 60)
+        # === 基础均线 ===
+        values = self.c.values
+        self.ma5 = talib.SMA(values, 5)
+        self.ma10 = talib.SMA(values, 10)
+        self.ma30 = talib.SMA(values, 30)
+        self.ma20 = talib.SMA(values, 20)
+        self.ma60 = talib.SMA(values, 60)
         
-        # 均量线
         self.vma5 = talib.SMA(self.v.values, 5)
         self.vma10 = talib.SMA(self.v.values, 10)
         self.vma20 = talib.SMA(self.v.values, 20)
+
+        # === 波动率 (关键优化) ===
+        # 使用 ATR(14) 来定义"大幅波动"、"接近"等概念，而非固定百分比
+        self.atr = talib.ATR(self.h.values, self.l.values, self.c.values, timeperiod=14)
+        # 归一化 ATR，用于判断相对波幅
+        self.natr = self.atr / self.c 
         
-        # MACD
-        self.diff, self.dea, self.macd_hist = talib.MACD(self.c.values)
+        # === MACD ===
+        self.diff, self.dea, self.macd_hist = talib.MACD(values, fastperiod=12, slowperiod=26, signalperiod=9)
         
-        # 基础形态数据
-        self.close_prev = self.c.shift(1).fillna(0)
-        self.open_prev = self.o.shift(1).fillna(0)
-        self.vol_prev = self.v.shift(1).fillna(0)
-        
-        # 实体大小与方向
+        # === Shift 数据 ===
+        self.close_prev = self.c.shift(1)
+        self.open_prev = self.o.shift(1)
+        self.vol_prev = self.v.shift(1)
+        self.high_prev = self.h.shift(1)
+        self.low_prev = self.l.shift(1)
+
+        # === 辅助逻辑 ===
         self.is_yang = self.c > self.o
-        self.is_yin = self.c < self.o
-        self.body_size = abs(self.c - self.o)
-        self.pct_change = (self.c - self.close_prev) / self.close_prev
-        
-        # 高低位判断 (优化版)
+        # 实体大小 (绝对值)
+        self.body_abs = np.abs(self.c - self.o)
+          # 高低位判断 (优化版)
         self.low_pos = self._check_position(is_low=True)
         self.high_pos = self._check_position(is_low=False)
 
@@ -88,66 +89,102 @@ class PatternDetector:
     # ================= 形态检测函数 (全向量化) =================
 
     def DOUBLE_BOTTOM(self):
-        """双重底: 向量化近似实现"""
-        # 寻找局部低点: 比前后各3天都低
-        window = 3
-        is_local_min = (self.l == self.l.rolling(window*2+1, center=True).min())
+        """
+        双重底 (无未来函数版)
+        逻辑：
+        1. 左底 (LB): 20-60天前的最低点
+        2. 右底 (RB): 5-20天前的最低点
+        3. 颈线 (Neck): 两底之间的最高点
+        4. 触发: 今天收盘突破颈线
+        """
+        # 定义窗口
+        window_long = 60
+        window_short = 20
         
-        results = np.zeros(self.n, dtype=int)
+        # 寻找过去60天的最低点 (排除最近5天，避免直接取到现在的低点)
+        period_low = self.l.shift(5).rolling(window_long).min()
         
-        # 获取最近一次局部低点的位置 (shift 1 排除自己)
-        last_min_pos = pd.Series(np.where(is_local_min, range(self.n), np.nan)).ffill().shift(1).astype(float)
+        # 寻找右底区域 (最近20天内的低点)
+        recent_low = self.l.rolling(window_short).min()
         
-        # 获取该位置的低点价格 - 使用整数索引并处理NaN
-        last_min_val = np.full(self.n, np.nan)
-        valid_pos = last_min_pos.notna()
-        if np.any(valid_pos):
-            last_min_val[valid_pos] = self.l.iloc[last_min_pos[valid_pos].astype(int)].values
+        # 条件1: 两个低点要在同一个水平位 (差距不超过 1.5倍 ATR)
+        # 这里用 ATR 替代固定的 3%
+        bottoms_level = np.abs(recent_low - period_low) < (self.atr * 1.5)
         
-        # 颈线确认: 收盘价突破两底之间的最高价 (简化处理：突破最近20天新高)
-        breakout = self.c > self.h.rolling(20).max().shift(1)
+        # 条件2: 颈线确认
+        # 实际上很难精确找到两个具体低点中间的时间段。
+        # 简化做法：过去 window_long 天的最高价(颈线)被突破? 不太对，那是突破大箱体。
+        # 修正做法：取过去 window_long 天内，除去最近 window_short 天及其左侧对应低点后的区间最大值。
+        # 向量化简化版：Breakout 20日新高，且之前有长期低点支撑
         
-        # 条件：
-        # 1. 之前有低点
-        # 2. 两个低点差距 < 2%
-        # 3. 两个低点间隔 > 5天 (避免并在)
-        # 4. 当前突破
+        # 1. 之前处于低位 (60天低点存在)
+        is_low_position = self.l <= (period_low + self.atr)
         
-        dist = abs(self.l - last_min_val) / last_min_val
-        days_diff = self.idx - last_min_pos
+        # 2. 经历了一波反弹和回调 (W型的中间高点存在)
+        # 过去60天最高价 > 最低价 + 5*ATR (确保有波峰)
+        has_peak = self.h.rolling(window_long).max() > (period_low + 5 * self.atr)
         
-        # 确保所有条件值为布尔型，排除NaN
-        cond1 = valid_pos
-        cond2 = (dist < 0.03)
-        cond3 = (days_diff > 5) & (days_diff < 60)
-        cond4 = breakout
+        # 3. 今天突破过去20天的高点 (右侧突破)
+        breakout = (self.c > self.h.shift(1).rolling(20).max()) & (self.c > self.o)
         
-        cond = cond1 & cond2 & cond3 & cond4
-        return cond.astype(int).values
+        # 4. 确保不是单边上涨，而是有底部震荡 (最近的低点离当前Close有一定距离，但离PeriodLow很近)
+        
+        return (bottoms_level & has_peak & breakout).fillna(0).astype(int).values
 
     def DRAGONFLY_TOUCH_WATER(self):
-        """蜻蜓点水"""
-        # 回调至MA20不破 (最低价击穿或接近，收盘价在上方)
-        # 1.005 系数允许微小刺穿或未触及
-        cond1 = (self.l <= self.ma20 * 1.005) & (self.c > self.ma20)
-        # 缩量
-        cond2 = self.v < self.vol_prev
-        # 趋势向上 (MA20 向上)
-        cond3 = self.ma20 > pd.Series(self.ma20).shift(1)
+        """
+        蜻蜓点水 (动态阈值版)
+        1. 趋势: MA20 向上
+        2. 回踩: 最低价触碰 MA20 (距离小于 0.5 * ATR)
+        3. 支撑: 收盘价在 MA20 上方，且不仅是触碰，还要有支撑反应 (如下影线)
+        """
+        # 1. 趋势向上 (MA20 比 5天前高)
+        ma20_series = pd.Series(self.ma20)
+        trend_up = self.ma20 > ma20_series.shift(5)
         
-        return (cond1 & cond2 & cond3).astype(int).values
+        # 2. 触碰逻辑: Low <= MA20 + 0.5*ATR (进入射程)
+        # 且 Low >= MA20 - 0.5*ATR (没有发生有效击穿，或者击穿幅度很小)
+        # 或者: Low 击穿了，但 Close 收回来了
+        touch = (self.l <= (self.ma20 + 0.3 * self.atr)) 
+        
+        # 3. 收盘站稳: Close > MA20
+        stand = self.c > self.ma20
+        
+        # 4. 缩量 (可选): 相比5日均量缩量
+        vma5 = talib.SMA(self.v.values, 5)
+        shrink_vol = self.v < vma5
+        
+        return (trend_up & touch & stand & shrink_vol).fillna(0).astype(int).values
 
     def GAP_FILLING(self):
-        """缺口回补"""
-        res = np.zeros(self.n, dtype=int)
-        # 向上补: 今天低点 <= 昨天收盘 < 今天开盘 (且昨天是跳空高开) -> 实际上补缺口意味着 Gap 被填平
-        # 原始逻辑：open > prev_close (高开), low <= prev_close (回补)
-        up_fill = (self.o > self.close_prev) & (self.l <= self.close_prev)
-        # 向下补
-        down_fill = (self.o < self.close_prev) & (self.h >= self.close_prev)
+        """
+        缺口回补 (回补之前的跳空)
+        逻辑：
+        1. 之前(如3天内)发生过向下跳空缺口 (Gap Down: High[t-1] < Low[t-2])
+        2. 今天的高点回补了该缺口 (High[t] >= Low[t-2])
+        """
+        # === 向下跳空缺口回补 (看多信号) ===
+        # 缺口产生：昨天的最高价 < 前天的最低价
+        # 注意：这里 shift(1) 是昨天，shift(2) 是前天
+        gap_down = self.h.shift(1) < self.l.shift(2)
         
-        res[up_fill] = 1
-        res[down_fill] = -1
+        # 缺口上沿压力位 (前天的最低价)
+        gap_resistance = self.l.shift(2)
+        
+        # 今天反弹回补：今天最高价 >= 缺口压力位
+        fill_up = gap_down & (self.h >= gap_resistance) & (self.c > self.o)
+        
+        # === 向上跳空缺口回补 (看空信号) ===
+        # 缺口产生：昨天的最低价 > 前天的最高价
+        gap_up = self.l.shift(1) > self.h.shift(2)
+        gap_support = self.h.shift(2)
+        
+        # 今天下跌回补
+        fill_down = gap_up & (self.l <= gap_support) & (self.c < self.o)
+        
+        res = np.zeros(self.n, dtype=int)
+        res[fill_up] = 1
+        res[fill_down] = -1
         return res
 
     def THREE_GOLDEN_CROSSES(self):
@@ -216,16 +253,26 @@ class PatternDetector:
         return np.where(c1 & c2, -1, 0)
 
     def CHU_SHUI_FU_RONG(self):
-        """出水芙蓉: 一阳穿三线"""
-        # 开盘在三线之下
-        min_ma = np.minimum(np.minimum(self.ma5, self.ma10), self.ma20)
-        max_ma = np.maximum(np.maximum(self.ma5, self.ma10), self.ma20)
+        """
+        出水芙蓉 (增强版)
+        1. 实体穿三线 (MA5, MA10, MA20)
+        2. 必须是大阳线 (实体 > 1.5倍平均实体 或 > ATR)
+        3. 放量
+        """
+        # 三线汇聚检查 (可选，均线不能发散得太厉害)
+        ma_max = np.maximum(np.maximum(self.ma5, self.ma10), self.ma20)
+        ma_min = np.minimum(np.minimum(self.ma5, self.ma10), self.ma20)
         
-        c1 = self.o < min_ma
-        c2 = self.c > max_ma
-        c3 = self.c > self.o # 阳线
+        # 1. 穿透: 开在最下面下面，收在最上面上面
+        penetrate = (self.o < ma_min) & (self.c > ma_max)
         
-        return (c1 & c2 & c3).astype(int).values
+        # 2. 力度: 实体长度 > 0.8 * ATR (排除掉那些波动极小的伪芙蓉)
+        strong_body = (self.c - self.o) > (0.8 * self.atr)
+        
+        # 3. 放量: 大于5日均量
+        vol_up = self.v > talib.SMA(self.v.values, 5)
+        
+        return (penetrate & strong_body & vol_up).fillna(0).astype(int).values
 
     def BACKTEST_MA5(self):
         """回踩五日线"""
@@ -564,13 +611,35 @@ class PatternDetector:
         return np.where(c1 & c2 & c3, -1, 0)
 
     def LIMIT_UP_HORSE(self):
-        """涨停回马枪"""
-        # T-5 涨停
-        c1 = (self.c.shift(5) - self.c.shift(6)) / self.c.shift(6) > (self.limit_threshold - 0.005)
-        # 之后几天回调不破 T-5 的收盘
-        min_close = self.c.rolling(5).min() # 含今天
-        c2 = min_close > self.c.shift(5)
-        return (c1 & c2).fillna(0).astype(int).values
+        """
+        涨停回马枪
+        1. 基因: T-N (3~7天前) 曾出现涨停
+        2. 回调: 之后缩量回调，不破涨停阳线的开盘价(或中点)
+        3. 启动: 今天再次放量/上涨
+        """
+        threshold = self.limit_threshold - 0.005 # 容差
+        
+        # 1. 寻找涨停基因 (过去3到7天内有一天是涨停的)
+        pct = self.c.pct_change()
+        is_limit_up = pct > threshold
+        
+        # 构建一个mask，表示"过去3-7天内有过涨停"
+        # shift(3) 表示3天前...
+        has_limit_genes = (is_limit_up.shift(3) | is_limit_up.shift(4) | 
+                           is_limit_up.shift(5) | is_limit_up.shift(6) | is_limit_up.shift(7))
+        
+        # 2. 支撑位判定
+        # 简单处理：过去7天最低价 >= 过去7天最低那个收盘价 (或者20日线)
+        # 更精细处理：获取最近那个涨停日的 Open Price。向量化比较困难。
+        # 替代方案：价格维持在 MA20 之上，且没有暴跌(单日跌幅 < 5%)
+        no_crash = (pct > -0.05).rolling(7).sum() == 7
+        trend_ok = self.l > self.ma20
+        
+        # 3. 缩量回调后启动
+        # 今天上涨，且量能比昨天大
+        start = (self.c > self.o) & (self.v > self.v.shift(1))
+        
+        return (has_limit_genes & no_crash & trend_ok & start).fillna(0).astype(int).values
 
     def RISING_CHANNEL(self):
         """上升通道"""
@@ -629,27 +698,48 @@ class PatternDetector:
 
     def OLD_DUCK_HEAD(self):
         """
-        老鸭头 (高度复杂形态的向量化逼近)
-        逻辑拆解:
-        1. 鸭颈: MA60 持续向上
-        2. 鸭头: MA5 与 MA10 死叉 (Dead Cross)
-        3. 鸭嘴: MA5 与 MA10 金叉 (Golden Cross) - 当前信号
-        4. 支撑: 整个过程价格在 MA60 上方
+        老鸭头 (严格时序版)
+        1. 长期趋势: MA60 连续向上
+        2. 形成鸭头: 之前发生过死叉 (Dead Cross)
+        3. 形成鸭嘴: 最近发生金叉 (Golden Cross)
+        4. 时序: 死叉时间 < 金叉时间
+        5. 支撑: 整个过程价格未有效跌破 MA60
         """
-        # 状态1: MA60 向上 (持续一段时间，比如10天)
-        ma60_up = (self.ma60 > pd.Series(self.ma60).shift(1)).rolling(10).sum() == 10
+        # 将numpy数组转换为pandas Series
+        ma60_series = pd.Series(self.ma60)
+        ma5_series = pd.Series(self.ma5)
+        ma10_series = pd.Series(self.ma10)
         
-        # 状态2: 刚刚金叉 (鸭嘴张开)
-        golden_cross = self._cross_over(self.ma5, self.ma10)
+        # 1. MA60 趋势向上 (最近10天)
+        ma60_up = (self.ma60 > ma60_series.shift(1)).rolling(10).sum() == 10
         
-        # 状态3: 过去一段时间 (比如5-20天前) 有过死叉 (形成鸭头)
-        dead_cross = self._cross_under(self.ma5, self.ma10)
-        has_dead_cross = pd.Series(dead_cross).rolling(window=20, min_periods=5).max()
+        # 2. 交叉信号
+        # prev <= prev AND curr > curr
+        gold_cross = (self.ma5 > self.ma10) & (ma5_series.shift(1) <= ma10_series.shift(1))
+        dead_cross = (self.ma5 < self.ma10) & (ma5_series.shift(1) >= ma10_series.shift(1))
         
-        # 状态4: 价格始终在 MA60 之上 (保持多头)
-        above_ma60 = (self.c > self.ma60).rolling(20).sum() == 20
+        # 3. 记录最近一次交叉发生的"时间" (使用 integer index)
+        # 创建一个自然数序列 [0, 1, 2, ... n]
+        idx_series = pd.Series(np.arange(self.n), index=self.c.index)
         
-        return (ma60_up & golden_cross & has_dead_cross & above_ma60).fillna(0).astype(int).values
+        # 如果发生死叉，记录 index，否则 NaN，然后向前填充
+        last_dead_idx = idx_series.where(dead_cross).ffill()
+        last_gold_idx = idx_series.where(gold_cross).ffill()
+        
+        # 4. 判定逻辑
+        # A: 今天必须是金叉 (鸭嘴张开)
+        cond_today_gold = gold_cross
+        
+        # B: 最近一次死叉发生在金叉之前 (且距离不远，比如20天内)
+        # 注意：因为 cond_today_gold 为 True，last_gold_idx 就是今天
+        diff_days = last_gold_idx - last_dead_idx
+        cond_sequence = (diff_days > 0) & (diff_days < 20)
+        
+        # C: 回调过程缩量 (死叉到金叉期间，均量减少) - 可选，这里简化为价格支撑
+        # D: 价格在 MA60 之上 (容忍度 1%)
+        price_support = self.l > (self.ma60 * 0.99)
+        
+        return (ma60_up & cond_today_gold & cond_sequence & price_support).fillna(0).astype(int).values
 
     def TOP_VOL_SPIKE(self):
         """顶部放量"""

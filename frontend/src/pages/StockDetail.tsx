@@ -61,8 +61,8 @@ export default function StockDetail() {
       
       // 定义时间区间参数，默认获取最近3年数据
       const timeParams = {
-        limit: 1095, // 默认获取3年数据
-        days: 30     // 默认检测最近30天的形态
+        start: '2015-01-01',
+        days: 60     // 默认检测最近60天的形态
       }
       
       const history = await getHistory(securityCode, timeParams)

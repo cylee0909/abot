@@ -23,24 +23,27 @@ class CustomPatternDetector:
     def _precalculate_indicators(self):
         # === 基础均线 ===
         values = self.c.values
-        self.ma5 = talib.SMA(values, 5)
-        self.ma10 = talib.SMA(values, 10)
-        self.ma30 = talib.SMA(values, 30)
-        self.ma20 = talib.SMA(values, 20)
-        self.ma60 = talib.SMA(values, 60)
+        self.ma5 = pd.Series(talib.SMA(values, 5))
+        self.ma10 = pd.Series(talib.SMA(values, 10))
+        self.ma30 = pd.Series(talib.SMA(values, 30))
+        self.ma20 = pd.Series(talib.SMA(values, 20))
+        self.ma60 = pd.Series(talib.SMA(values, 60))
         
-        self.vma5 = talib.SMA(self.v.values, 5)
-        self.vma10 = talib.SMA(self.v.values, 10)
-        self.vma20 = talib.SMA(self.v.values, 20)
+        self.vma5 = pd.Series(talib.SMA(self.v.values, 5))
+        self.vma10 = pd.Series(talib.SMA(self.v.values, 10))
+        self.vma20 = pd.Series(talib.SMA(self.v.values, 20))
 
         # === 波动率 (关键优化) ===
         # 使用 ATR(14) 来定义"大幅波动"、"接近"等概念，而非固定百分比
-        self.atr = talib.ATR(self.h.values, self.l.values, self.c.values, timeperiod=14)
+        self.atr = pd.Series(talib.ATR(self.h.values, self.l.values, self.c.values, timeperiod=14))
         # 归一化 ATR，用于判断相对波幅
         self.natr = self.atr / self.c 
         
         # === MACD ===
-        self.diff, self.dea, self.macd_hist = talib.MACD(values, fastperiod=12, slowperiod=26, signalperiod=9)
+        macd_results = talib.MACD(values, fastperiod=12, slowperiod=26, signalperiod=9)
+        self.diff = pd.Series(macd_results[0])
+        self.dea = pd.Series(macd_results[1])
+        self.macd_hist = pd.Series(macd_results[2])
         
         # === Shift 数据 ===
         self.close_prev = self.c.shift(1)
@@ -76,14 +79,14 @@ class CustomPatternDetector:
     def _cross_over(self, a, b):
         """a 上穿 b (金叉)"""
         # (今天 a > b) AND (昨天 a <= b)
-        prev_a = pd.Series(a).shift(1)
-        prev_b = pd.Series(b).shift(1)
+        prev_a = a.shift(1)
+        prev_b = b.shift(1)
         return (a > b) & (prev_a <= prev_b)
     
     def _cross_under(self, a, b):
         """a 下穿 b (死叉)"""
-        prev_a = pd.Series(a).shift(1)
-        prev_b = pd.Series(b).shift(1)
+        prev_a = a.shift(1)
+        prev_b = b.shift(1)
         return (a < b) & (prev_a >= prev_b)
 
     # ================= 形态检测函数 (全向量化) =================
@@ -139,8 +142,7 @@ class CustomPatternDetector:
         3. 支撑: 收盘价在 MA20 上方，且不仅是触碰，还要有支撑反应 (如下影线)
         """
         # 1. 趋势向上 (MA20 比 5天前高)
-        ma20_series = pd.Series(self.ma20)
-        trend_up = self.ma20 > ma20_series.shift(5)
+        trend_up = self.ma20 > self.ma20.shift(5)
         
         # 2. 触碰逻辑: Low <= MA20 + 0.5*ATR (进入射程)
         # 且 Low >= MA20 - 0.5*ATR (没有发生有效击穿，或者击穿幅度很小)
@@ -198,9 +200,9 @@ class CustomPatternDetector:
         
         # 使用 rolling max 判断最近3天是否发生过，确保返回布尔值
         window = 3
-        recent_ma = (pd.Series(ma_cross).rolling(window).max() > 0.5)
-        recent_vol = (pd.Series(vol_cross).rolling(window).max() > 0.5)
-        recent_macd = (pd.Series(macd_cross).rolling(window).max() > 0.5)
+        recent_ma = (ma_cross.rolling(window).max() > 0.5)
+        recent_vol = (vol_cross.rolling(window).max() > 0.5)
+        recent_macd = (macd_cross.rolling(window).max() > 0.5)
         
         # 且当前状态保持多头 (避免金叉后马上死叉)
         is_bull = (self.ma5 > self.ma10) & (self.vma5 > self.vma10) & (self.diff > self.dea)
@@ -289,7 +291,7 @@ class CustomPatternDetector:
         c1 = (self.ma5 > self.ma10) & (self.ma10 > self.ma20) & \
              (self.ma20 > self.ma30) & (self.ma30 > self.ma60)
         # 均线向上
-        c2 = self.ma5 > pd.Series(self.ma5).shift(1)
+        c2 = self.ma5 > self.ma5.shift(1)
         
         return (c1 & c2).astype(int).values
 
@@ -316,10 +318,10 @@ class CustomPatternDetector:
 
     def LONG_TENG_LOW(self):
         """龙腾四海低位"""
-        rsi = talib.RSI(self.c.values, 14)
+        rsi = pd.Series(talib.RSI(self.c.values, 14))
         c1 = self.low_pos
-        c2 = pd.Series(rsi).shift(1) < 30
-        c3 = rsi > pd.Series(rsi).shift(1)
+        c2 = rsi.shift(1) < 30
+        c3 = rsi > rsi.shift(1)
         
         return (c1 & c2 & c3).fillna(0).astype(int).values
 
@@ -434,9 +436,9 @@ class CustomPatternDetector:
     def DOLPHIN_MOUTH(self):
         """海豚嘴"""
         # MA20 向上
-        c1 = self.ma20 > pd.Series(self.ma20).shift(1)
+        c1 = self.ma20 > self.ma20.shift(1)
         # MA5 回踩 MA20 (之前在上方，现在接近或下方)
-        prev_above = pd.Series(self.ma5).shift(1) > pd.Series(self.ma20).shift(1)
+        prev_above = self.ma5.shift(1) > self.ma20.shift(1)
         curr_touch = self.ma5 <= self.ma20 * 1.01 # 允许1%误差
         
         return (c1 & prev_above & curr_touch).fillna(0).astype(int).values
@@ -476,16 +478,16 @@ class CustomPatternDetector:
 
     def MA_RESONANCE(self):
         """均线共振"""
-        c1 = self.ma5 > pd.Series(self.ma5).shift(1)
-        c2 = self.ma10 > pd.Series(self.ma10).shift(1)
-        c3 = self.ma20 > pd.Series(self.ma20).shift(1)
-        c4 = self.ma60 > pd.Series(self.ma60).shift(1)
+        c1 = self.ma5 > self.ma5.shift(1)
+        c2 = self.ma10 > self.ma10.shift(1)
+        c3 = self.ma20 > self.ma20.shift(1)
+        c4 = self.ma60 > self.ma60.shift(1)
         return (c1 & c2 & c3 & c4).fillna(0).astype(int).values
 
     def WARRIOR_BREAK_WRIST(self):
         """壮士断腕"""
         # 昨破位大阴
-        c1 = self.c.shift(1) < pd.Series(self.ma20).shift(1)
+        c1 = self.c.shift(1) < self.ma20.shift(1)
         c2 = (self.o.shift(1) - self.c.shift(1)) / self.o.shift(1) > 0.05
         # 今反弹阳线
         c3 = self.c > self.o
@@ -644,7 +646,7 @@ class CustomPatternDetector:
     def RISING_CHANNEL(self):
         """上升通道"""
         # 5日线连续10天向上
-        ma5_diff = pd.Series(self.ma5).diff()
+        ma5_diff = self.ma5.diff()
         c1 = (ma5_diff > 0).rolling(10).sum() == 10
         return c1.fillna(0).astype(int).values
 
@@ -660,7 +662,7 @@ class CustomPatternDetector:
 
     def MODERATE_VOL_INC(self):
         """温和放量"""
-        ratio = self.v / pd.Series(self.vma5).shift(1)
+        ratio = self.v / self.vma5.shift(1)
         return ((ratio > 1.1) & (ratio < 2.0)).fillna(0).astype(int).values
 
     def SHRINK_VOL_RISE(self):
@@ -670,7 +672,7 @@ class CustomPatternDetector:
         return ((self.c > self.close_prev) & (self.v > self.vol_prev)).astype(int).values
 
     def FALLING_CHANNEL(self):
-        ma5_diff = pd.Series(self.ma5).diff()
+        ma5_diff = self.ma5.diff()
         c1 = (ma5_diff < 0).rolling(10).sum() == 10
         return np.where(c1, -1, 0)
 
@@ -746,11 +748,11 @@ class CustomPatternDetector:
         """
         
         # ======================================
-        # 预处理：强制确保所有序列为pd.Series，避免数组类型报错
+        # 预处理：使用已有的pd.Series类型变量
         # ======================================
-        ma5_series = pd.Series(self.ma5)
-        ma10_series = pd.Series(self.ma10)
-        ma60_series = pd.Series(self.ma60)
+        ma5_series = self.ma5
+        ma10_series = self.ma10
+        ma60_series = self.ma60
         # 创建索引序列（pd.Series类型，使用整数索引避免类型混淆）
         idx_series = pd.Series(range(self.n), index=self.c.index)
 
@@ -812,14 +814,221 @@ class CustomPatternDetector:
             )
             if not is_valid:
                 continue
-            # 提取回调期间成交量，计算3日滚动均值
-            period_vol = self.v.iloc[dead_idx_int:gold_idx_int+1]
-            vol_roll_mean = period_vol.rolling(3, min_periods=1).mean()
-            # 优化：使用diff()计算趋势，80%以上时间滚动均值下降（替代严格的all()，更贴合实际）
-            vol_diff = vol_roll_mean.diff()
-            vol_trend_down = (vol_diff < 0).mean() >= 0.8
-            vol_shrink.iloc[i] = vol_trend_down
 
+            period_vol = self.v.iloc[dead_idx_int:gold_idx_int+1]
+            # 注意：这里需要对应时间段的 MA20，假设 self.v_ma20 与 self.v 索引对齐
+            period_ma20 = self.vma20.iloc[dead_idx_int:gold_idx_int+1]
+            # 核心逻辑：是不是大部分日子都是“缩量状态”（在均量线下方）
+            # 这里的 0.6 (60%) 是一个合理的区间，因为金叉前可能会放量突破均量线
+            is_low_volume = (period_vol < period_ma20).mean() >= 0.6
+            vol_shrink.iloc[i] = is_low_volume
+
+        # 6. 鸭头高度约束（死叉前10天股价涨幅≥5%）
+        duck_head_height = pd.Series(False, index=self.c.index, dtype=bool)
+        for i in range(self.n):
+            if pd.isna(last_dead_idx.iloc[i]):
+                continue
+            try:
+                dead_idx_int = int(last_dead_idx.iloc[i])
+            except (ValueError, TypeError):
+                continue
+            # 防止索引越界（死叉前至少10天数据）
+            if dead_idx_int < 10:
+                continue
+            # 死叉前10天收盘价涨幅
+            pre_dead_close = self.c.iloc[dead_idx_int - 10]
+            dead_close = self.c.iloc[dead_idx_int]
+            # 避免除零错误
+            if pre_dead_close == 0:
+                continue
+            price_rise = (dead_close - pre_dead_close) / pre_dead_close * 100
+            duck_head_height.iloc[i] = price_rise >= 5  # 涨幅≥5%
+
+        # 7. 优化：鸭颈后趋势约束（鸭颈到死叉期间MA5未有效跌破MA60）
+        neck_to_dead_valid = pd.Series(False, index=self.c.index, dtype=bool)
+        for i in range(self.n):
+            neck_to_dead_valid.iloc[i] = self._is_neck_dead_valid(
+                last_neck_idx.iloc[i], last_dead_idx.iloc[i], ma5_series, ma60_series
+            )
+
+        # 8. 优化：鸭头头顶平台约束（死叉前5-10天最高价波动≤10%，避免不规则震荡）
+        head_platform_valid = pd.Series(False, index=self.c.index, dtype=bool)
+        for i in range(self.n):
+            if pd.isna(last_dead_idx.iloc[i]):
+                continue
+            try:
+                dead_idx_int = int(last_dead_idx.iloc[i])
+            except (ValueError, TypeError):
+                continue
+            # 确保有足够数据计算头顶平台
+            if dead_idx_int < 10:
+                continue
+            # 提取死叉前5-10天的最高价（头顶区间）
+            head_highs = self.h.iloc[dead_idx_int-10 : dead_idx_int-5+1]
+            max_high = head_highs.max()
+            min_high = head_highs.min()
+            # 避免除零错误
+            if min_high == 0:
+                continue
+            # 波动幅度≤10%，判定为平台震荡
+            head_volatility = (max_high - min_high) / min_high * 100
+            head_platform_valid.iloc[i] = head_volatility <= 10
+
+        # ======================================
+        # 所有条件合并（最终判定，包含新增优化约束）
+        # ======================================
+        final_cond = (
+            ma60_trend_up &
+            cond_recent_gold &
+            cond_neck_before_dead &
+            cond_sequence &
+            price_support_all &
+            vol_shrink &
+            duck_head_height &
+            neck_to_dead_valid &  # 新增鸭颈趋势约束
+            head_platform_valid   # 新增头顶平台约束
+        )
+
+        # ======================================
+        # 结果处理：填充空值，转换为整数类型数组返回
+        # ======================================
+        return final_cond.fillna(0).astype(int).values
+
+    def OLD_DUCK_HEAD_LIKE(self):
+        """
+        宽松老鸭头形态检测（高性能+高鲁棒性+高准确性）
+        核心特征：
+        1.  长期趋势：MA60 阶段向上（非每日连涨，更贴合实际行情）
+        2.  形态前提：存在鸭颈（MA5上穿MA60，且死叉前MA5未有效跌破MA60）
+        3.  形态核心：先死叉（鸭头回调）→ 后金叉（鸭嘴张开），时序合理
+        4.  支撑约束：回调全程（死叉→金叉）价格未有效跌破MA60（容忍1%）
+        5.  量能约束：回调全程缩量（整体趋势下降，允许单日小幅反复）
+        6.  鸭头高度：回调前有合理涨幅，避免小幅震荡误判
+        7.  头顶约束：鸭头顶部为平台震荡，避免不规则大幅震荡误判
+        """
+        
+        # ======================================
+        # 预处理：使用已有的pd.Series类型变量
+        # ======================================
+        ma5_series = self.ma5
+        ma10_series = self.ma10
+        ma60_series = self.ma60
+        # 创建索引序列（pd.Series类型，使用整数索引避免类型混淆）
+        idx_series = pd.Series(range(self.n), index=self.c.index)
+
+        # ======================================
+        # 核心信号判定
+        # ======================================
+        # 金叉信号（MA5上穿MA10）
+        gold_cross = (ma5_series > ma10_series) & (ma5_series.shift(1) <= ma10_series.shift(1))
+        # 死叉信号（MA5下穿MA10）
+        dead_cross = (ma5_series < ma10_series) & (ma5_series.shift(1) >= ma10_series.shift(1))
+        # 鸭颈信号（MA5上穿MA60，老鸭头前提）
+        neck_cross = (ma5_series > ma60_series) & (ma5_series.shift(1) <= ma60_series.shift(1))
+
+        # ======================================
+        # 记录最近一次各类信号的索引（向前填充，确保每个位置都有最近信号的索引）
+        # ======================================
+        last_dead_idx = pd.Series(idx_series.where(dead_cross).ffill(), index=self.c.index)    # 最近一次死叉索引
+        last_gold_idx = pd.Series(idx_series.where(gold_cross).ffill(), index=self.c.index)    # 最近一次金叉索引
+        last_neck_idx = pd.Series(idx_series.where(neck_cross).ffill(), index=self.c.index)    # 最近一次鸭颈索引
+
+        # ======================================
+        # 分条件判定（核心逻辑，含所有优化点）
+        # ======================================
+        # 计算最近10天的变化率（归一化，解决高低价股差异）
+        # 逻辑：(今天MA60 - 10天前MA60) / 10天前MA60
+        ma60_pct_change = (ma60_series - ma60_series.shift(10)) / ma60_series.shift(10)
+        
+        # 定义阈值：-0.01 代表允许10天内MA60下跌不超过 1% (可视情况调整为 -0.005)
+        slope_threshold = -0.005
+        
+        # 条件A：趋势向上（理想情况）
+        cond_trend_up = ma60_pct_change > 0
+        
+        # 条件B：趋势走平/微跌，但在容忍范围内，且股价站稳在MA60之上（安全锁）
+        # 注意：self.c 是收盘价序列，需要确保索引对齐
+        cond_trend_flat = (ma60_pct_change > slope_threshold) & (self.c > ma60_series)
+        
+        # 综合判定：满足A或B均可
+        ma60_trend_up = cond_trend_up | cond_trend_flat
+        
+        # 填充缺失值
+        ma60_trend_up = ma60_trend_up.fillna(False)
+
+        # 2. 当日或近期金叉（放宽约束：4天内（含当日）出现金叉）
+        cond_recent_gold = gold_cross.rolling(4).max()  # 滚动最大值，4天内有金叉则为True
+
+        # 3. 时序合理性：鸭颈→死叉→金叉，且死叉到金叉间隔合理（1-20天）
+        cond_neck_before_dead = (last_neck_idx < last_dead_idx)  # 鸭颈在死叉之前
+        diff_days = last_gold_idx - last_dead_idx                # 死叉到金叉的间隔天数
+        cond_sequence = (diff_days > 0) & (diff_days < 20)       # 间隔为正且不超过20天
+
+        # 4. 回调全程价格支撑（优化：使用辅助函数减少冗余）
+        price_support_all = pd.Series(False, index=self.c.index, dtype=bool)
+        for i in range(self.n):
+            # 索引有效性校验
+            is_valid, dead_idx_int, gold_idx_int = self._is_index_valid(
+                last_dead_idx.iloc[i], last_gold_idx.iloc[i], self.n
+            )
+            if not is_valid:
+                continue
+            # 提取回调期间的最低价和MA60
+            period_low = self.l.iloc[dead_idx_int:gold_idx_int+1]
+            period_ma60 = ma60_series.iloc[dead_idx_int:gold_idx_int+1]
+            # 判定期间90%以上最低价在MA60的98%之上（放宽约束）
+            support_ratio = (period_low > (period_ma60 * 0.98)).mean()
+            price_support_all.iloc[i] = support_ratio >= 0.9
+
+        # 5. 回调缩量（优化：放宽约束，允许单日反复，提升准确性）
+        vol_shrink = pd.Series(False, index=self.c.index, dtype=bool)
+        
+        for i in range(self.n):
+            # 索引有效性校验
+            is_valid, dead_idx_int, gold_idx_int = self._is_index_valid(
+                last_dead_idx.iloc[i], last_gold_idx.iloc[i], self.n
+            )
+            if not is_valid:
+                continue
+
+            # --- 1. 获取“鸭头回调期” (Head) 数据 ---
+            # 从死叉点到金叉点
+            head_vol = self.v.iloc[dead_idx_int:gold_idx_int+1]
+            if head_vol.empty:
+                continue
+            
+            # --- 2. 获取“鸭颈上涨期” (Neck) 数据 ---
+            # 逻辑：为了进行公平对比，我们需要提取死叉前的一段上涨过程作为基准。
+            # 策略：取与回调期相同的时间长度，或者至少取前10-20天的数据。
+            head_len = gold_idx_int - dead_idx_int
+            # 设定回溯窗口：取“回调时长”和“15天”中的较大值，确保基准数据充足
+            neck_lookback = max(15, head_len) 
+            
+            neck_start = max(0, dead_idx_int - neck_lookback)
+            neck_vol = self.v.iloc[neck_start:dead_idx_int]
+            
+            # 边界保护：如果前面没有数据（刚上市），则无法对比
+            if neck_vol.empty:
+                continue
+
+            # --- 3. 计算核心指标 ---
+            avg_vol_head = head_vol.mean() # 回调期平均量
+            avg_vol_neck = neck_vol.mean() # 上涨期平均量
+            
+            # --- 4. 判定逻辑 ---
+            # 逻辑A（核心）：整体水位下降。回调均量 < 上涨均量 * 0.7 (即缩量30%以上)
+            cond_avg_drop = avg_vol_head < (avg_vol_neck * 0.7)
+            
+            # 逻辑B（辅助/兜底）：原来的“均量线压制”逻辑，但放宽阈值。
+            # 如果某只股票没有明显的放量上涨，但回调时缩量极致（比如全在MA20之下），也算过。
+            # 这里将阈值从 0.6/0.8 降至 0.5 (一半时间在均量线下一即可)
+            period_ma20 = self.vma20.iloc[dead_idx_int:gold_idx_int+1]
+            cond_under_ma = (head_vol < period_ma20).mean() >= 0.5
+            
+            # --- 5. 综合结论 ---
+            # 满足任意一个条件即可（既抓住了标准缩量，也兼容了极致低量）
+            vol_shrink.iloc[i] = cond_avg_drop or cond_under_ma
+            
         # 6. 鸭头高度约束（死叉前10天股价涨幅≥5%）
         duck_head_height = pd.Series(False, index=self.c.index, dtype=bool)
         for i in range(self.n):
@@ -914,7 +1123,7 @@ class CustomPatternDetector:
         diff = np.max(arrs, axis=0) - np.min(arrs, axis=0)
         c1 = diff / self.c < 0.01
         # 均向上
-        c2 = (self.ma5 > pd.Series(self.ma5).shift(1)) & \
-             (self.ma10 > pd.Series(self.ma10).shift(1)) & \
-             (self.ma20 > pd.Series(self.ma20).shift(1))
+        c2 = (self.ma5 > self.ma5.shift(1)) & \
+             (self.ma10 > self.ma10.shift(1)) & \
+             (self.ma20 > self.ma20.shift(1))
         return (c1 & c2).fillna(0).astype(int).values

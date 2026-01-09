@@ -160,6 +160,7 @@ class PatternDector:
             ('HIGH_SIDEWAYS', '高位横盘', self.pattern_detector.HIGH_SIDEWAYS),
             ('IMMORTAL_POINT_WAY', '仙人指路', self.pattern_detector.IMMORTAL_POINT_WAY),
             ('OLD_DUCK_HEAD', '老鸭头', self.pattern_detector.OLD_DUCK_HEAD),
+            ('OLD_DUCK_HEAD_LIKE', '宽松老鸭头', self.pattern_detector.OLD_DUCK_HEAD_LIKE),
             ('TOP_VOL_SPIKE', '顶部放量', self.pattern_detector.TOP_VOL_SPIKE),
             ('ROCKET_LAUNCH', '火箭升空', self.pattern_detector.ROCKET_LAUNCH),
             ('CRANE_POINTER', '仙鹤指针', self.pattern_detector.CRANE_POINTER),

@@ -81,13 +81,14 @@ def test_kline_patterns_api(stock_code=None, patterns=None, show_details=10, sta
 
 if __name__ == "__main__":
     import argparse
+    from datetime import datetime
     
     parser = argparse.ArgumentParser(description='K线形态检测测试工具')
     parser.add_argument('--stock', type=str, default=None, help='股票代码，不指定则检测所有股票')
     parser.add_argument('--patterns', type=str, nargs='+', help='要测试的形态列表，不指定则测试所有形态')
     parser.add_argument('--show-details', type=int, default=10, help='显示的详细数量，默认10条')
     parser.add_argument('--start', type=str, default="2015-01-01", help='开始日期，默认"2015-01-01"')
-    parser.add_argument('--end', type=str, default="2025-12-31", help='结束日期，默认"2025-12-31"')
+    parser.add_argument('--end', type=str, default=datetime.now().strftime("%Y-%m-%d"), help='结束日期，默认今天')
     
     args = parser.parse_args()
     

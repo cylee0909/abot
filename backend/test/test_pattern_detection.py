@@ -14,13 +14,15 @@ from app.db.stock_history import get_history
 from app.db.companies import get_companies
 
 
-def test_kline_patterns_api(stock_code=None, patterns=None, show_details=10):
+def test_kline_patterns_api(stock_code=None, patterns=None, show_details=10, start_time="2015-01-01", end_time="2025-12-31"):
     """测试kline_patterns模块的API
     
     Args:
         stock_code: 股票代码，默认None（检测所有股票）
         patterns: 要检测的形态列表，默认None（检测所有形态）
         show_details: 显示的详细形态数量，默认10条
+        start_time: 开始日期，默认"2015-01-01"
+        end_time: 结束日期，默认"2025-12-31"
     """
     print("=== 测试kline_patterns模块API ===")
     
@@ -40,7 +42,8 @@ def test_kline_patterns_api(stock_code=None, patterns=None, show_details=10):
         
         # 从数据库获取数据
         print(f"\n1. 从数据库获取 {code} 的历史数据...")
-        stock_data = get_history(code, "2015-01-01", "2025-12-31")
+        print(f"   时间范围: {start_time} 至 {end_time}")
+        stock_data = get_history(code, start_time, end_time)
         
         if not stock_data:
             print(f"   股票 {code} 无历史数据，跳过")
@@ -83,7 +86,9 @@ if __name__ == "__main__":
     parser.add_argument('--stock', type=str, default=None, help='股票代码，不指定则检测所有股票')
     parser.add_argument('--patterns', type=str, nargs='+', help='要测试的形态列表，不指定则测试所有形态')
     parser.add_argument('--show-details', type=int, default=10, help='显示的详细数量，默认10条')
+    parser.add_argument('--start', type=str, default="2015-01-01", help='开始日期，默认"2015-01-01"')
+    parser.add_argument('--end', type=str, default="2025-12-31", help='结束日期，默认"2025-12-31"')
     
     args = parser.parse_args()
     
-    test_kline_patterns_api(stock_code=args.stock, patterns=args.patterns, show_details=args.show_details)
+    test_kline_patterns_api(stock_code=args.stock, patterns=args.patterns, show_details=args.show_details, start_time=args.start, end_time=args.end)

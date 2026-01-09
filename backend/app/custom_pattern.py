@@ -19,6 +19,7 @@ class CustomPatternDetector:
         self.n = len(self.c)
         self.limit_threshold = limit_threshold
         self._precalculate_indicators()
+        self._debug = False
 
     def _precalculate_indicators(self):
         # === 基础均线 ===
@@ -889,6 +890,24 @@ class CustomPatternDetector:
             head_platform_valid   # 新增头顶平台约束
         )
 
+        # 打印日志，分析每个条件的执行情况
+        if self._debug:
+            # 只打印最后一天的数据，因为我们关心的是最新状态
+            last_idx = len(self.c) - 1
+            print(f"\n=== OLD_DUCK_HEAD_LIKE 形态检测日志 ===")
+            print(f"最新日期: {self.c.index[last_idx] if hasattr(self.c, 'index') else last_idx}")
+            print(f"MA60趋势向上: {ma60_trend_up.iloc[last_idx]}")
+            print(f"近期金叉: {cond_recent_gold.iloc[last_idx]}")
+            print(f"鸭颈在死叉之前: {cond_neck_before_dead.iloc[last_idx]}")
+            print(f"死叉到金叉间隔合理: {cond_sequence.iloc[last_idx]}")
+            print(f"回调全程价格支撑: {price_support_all.iloc[last_idx]}")
+            print(f"回调缩量: {vol_shrink.iloc[last_idx]}")
+            print(f"鸭头高度足够: {duck_head_height.iloc[last_idx]}")
+            print(f"鸭颈到死叉期间MA5未跌破MA60: {neck_to_dead_valid.iloc[last_idx]}")
+            print(f"鸭头顶部平台震荡: {head_platform_valid.iloc[last_idx]}")
+            print(f"最终结果: {final_cond.iloc[last_idx]}")
+            print(f"======================================")
+
         # ======================================
         # 结果处理：填充空值，转换为整数类型数组返回
         # ======================================
@@ -1076,9 +1095,9 @@ class CustomPatternDetector:
             # 避免除零错误
             if min_high == 0:
                 continue
-            # 波动幅度≤10%，判定为平台震荡
+            # 波动幅度≤15%，判定为平台震荡（宽松版）
             head_volatility = (max_high - min_high) / min_high * 100
-            head_platform_valid.iloc[i] = head_volatility <= 10
+            head_platform_valid.iloc[i] = head_volatility <= 15
 
         # ======================================
         # 所有条件合并（最终判定，包含新增优化约束）
@@ -1094,6 +1113,24 @@ class CustomPatternDetector:
             neck_to_dead_valid &  # 新增鸭颈趋势约束
             head_platform_valid   # 新增头顶平台约束
         )
+
+        # 打印日志，分析每个条件的执行情况
+        if self._debug:
+            # 只打印最后一天的数据，因为我们关心的是最新状态
+            last_idx = len(self.c) - 1
+            print(f"\n=== OLD_DUCK_HEAD_LIKE 形态检测日志 ===")
+            print(f"最新日期: {self.c.index[last_idx] if hasattr(self.c, 'index') else last_idx}")
+            print(f"MA60趋势向上: {ma60_trend_up.iloc[last_idx]}")
+            print(f"近期金叉: {cond_recent_gold.iloc[last_idx]}")
+            print(f"鸭颈在死叉之前: {cond_neck_before_dead.iloc[last_idx]}")
+            print(f"死叉到金叉间隔合理: {cond_sequence.iloc[last_idx]}")
+            print(f"回调全程价格支撑: {price_support_all.iloc[last_idx]}")
+            print(f"回调缩量: {vol_shrink.iloc[last_idx]}")
+            print(f"鸭头高度足够: {duck_head_height.iloc[last_idx]}")
+            print(f"鸭颈到死叉期间MA5未跌破MA60: {neck_to_dead_valid.iloc[last_idx]}")
+            print(f"鸭头顶部平台震荡: {head_platform_valid.iloc[last_idx]}")
+            print(f"最终结果: {final_cond.iloc[last_idx]}")
+            print(f"======================================")
 
         # ======================================
         # 结果处理：填充空值，转换为整数类型数组返回

@@ -10,9 +10,6 @@
 }
 
 .stock-list-header {
-  display: flex;
-  justify-content: center;
-  align-items: center;
   padding: 12px 16px;
   border-bottom: 1px solid #eee;
   background: #fff;
@@ -20,25 +17,161 @@
   position: relative;
 }
 
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 6px 12px;
+  gap: 12px;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+/* 确保筛选按钮和搜索容器在居中布局中正确显示 */
 .stock-list-title {
-  font-size: 16px;
-  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.search-container {
+  flex-shrink: 0;
+}
+
+/* 当搜索框展开时，隐藏其他元素 */
+.header-content.search-expanded {
+  gap: 0;
+}
+
+.header-content.search-expanded .stock-list-title,
+.header-content.search-expanded .header-divider {
+  display: none;
+}
+
+.header-content.search-expanded .search-container {
+  flex: 1;
+}
+
+/* 筛选按钮样式 */
+.stock-list-title {
+  font-size: 14px;
+  font-weight: 500;
   margin: 0;
   user-select: none;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   transition: all 0.3s;
   color: #333;
-  padding: 6px 12px;
-  border-radius: 20px;
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 
 .stock-list-title:hover {
   color: #1890ff;
   background-color: #f0f7ff;
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+}
+
+/* 竖线分隔符 */
+.header-divider {
+  width: 1px;
+  height: 16px;
+  background: #e0e0e0;
+  margin: 0 4px;
+}
+
+/* 搜索框样式 */
+.search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.search-input {
+  width: 100%;
+  padding: 4px 28px 4px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+  transition: all 0.3s;
+  opacity: 1;
+  visibility: visible;
+}
+
+.search-input:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* 当搜索框展开时，修改输入框样式为只有下边框 */
+.header-content.search-expanded .search-input {
+  border: none;
+  border-bottom: 1px solid #d9d9d9;
+  border-radius: 0;
+  padding: 4px 0;
+}
+
+.header-content.search-expanded .search-input:focus {
+  border-bottom-color: #1890ff;
+  box-shadow: none;
+}
+
+/* 当搜索框展开时，隐藏搜索图标但保留清空按钮 */
+.header-content.search-expanded .search-icon:not(.clear-icon) {
+  display: none;
+}
+
+/* 当搜索框展开时，调整清空按钮的位置 */
+.header-content.search-expanded .search-icon.clear-icon {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+}
+
+.search-icon {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s;
+  z-index: 1;
+  display: flex;
+  padding: 4px;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.search-icon:hover {
+  color: #1890ff;
+}
+
+/* 清空按钮样式 */
+.clear-icon {
+  color: #999;
+}
+
+.clear-icon:hover {
+  color: #ff4d4f;
+}
+
+/* 当搜索框未展开时，调整样式 */
+.search-container:not(:has(.search-input)) .search-icon {
+  position: static;
+  transform: none;
+  padding: 4px;
+  width: 28px;
+  height: 28px;
 }
 
 .filter-tag {

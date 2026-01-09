@@ -696,50 +696,200 @@ class CustomPatternDetector:
         c2 = self.c > self.o
         return (c1 & c2).astype(int).values
 
+    def _is_index_valid(self, dead_idx, gold_idx, n):
+        """
+        封装索引有效性校验辅助函数，减少冗余代码
+        返回值：(是否有效, 转换后的死叉索引, 转换后的金叉索引)
+        """
+        if pd.isna(dead_idx) or pd.isna(gold_idx):
+            return False, -1, -1
+        try:
+            dead_idx_int = int(dead_idx)
+            gold_idx_int = int(gold_idx)
+        except (ValueError, TypeError):
+            return False, -1, -1
+        # 边界校验
+        if dead_idx_int < 0 or gold_idx_int >= n or dead_idx_int > gold_idx_int:
+            return False, -1, -1
+        return True, dead_idx_int, gold_idx_int
+
+    def _is_neck_dead_valid(self, neck_idx, dead_idx, ma5_series, ma60_series):
+        """
+        验证鸭颈到死叉期间MA5始终在MA60上方（容忍小幅波动）
+        """
+        if pd.isna(neck_idx) or pd.isna(dead_idx):
+            return False
+        try:
+            neck_idx_int = int(neck_idx)
+            dead_idx_int = int(dead_idx)
+        except (ValueError, TypeError):
+            return False
+        if neck_idx_int >= dead_idx_int:
+            return False
+        # 提取鸭颈到死叉期间的MA5和MA60
+        neck_dead_ma5 = ma5_series.iloc[neck_idx_int:dead_idx_int+1]
+        neck_dead_ma60 = ma60_series.iloc[neck_idx_int:dead_idx_int+1]
+        # 容忍5%的小幅下穿，避免误判
+        return (neck_dead_ma5 > neck_dead_ma60 * 0.95).all()
+
     def OLD_DUCK_HEAD(self):
         """
-        老鸭头 (严格时序版)
-        1. 长期趋势: MA60 连续向上
-        2. 形成鸭头: 之前发生过死叉 (Dead Cross)
-        3. 形成鸭嘴: 最近发生金叉 (Golden Cross)
-        4. 时序: 死叉时间 < 金叉时间
-        5. 支撑: 整个过程价格未有效跌破 MA60
+        优化版老鸭头形态检测（高性能+高鲁棒性+高准确性）
+        核心特征：
+        1.  长期趋势：MA60 阶段向上（非每日连涨，更贴合实际行情）
+        2.  形态前提：存在鸭颈（MA5上穿MA60，且死叉前MA5未有效跌破MA60）
+        3.  形态核心：先死叉（鸭头回调）→ 后金叉（鸭嘴张开），时序合理
+        4.  支撑约束：回调全程（死叉→金叉）价格未有效跌破MA60（容忍1%）
+        5.  量能约束：回调全程缩量（整体趋势下降，允许单日小幅反复）
+        6.  鸭头高度：回调前有合理涨幅，避免小幅震荡误判
+        7.  头顶约束：鸭头顶部为平台震荡，避免不规则大幅震荡误判
         """
-        # 将numpy数组转换为pandas Series
-        ma60_series = pd.Series(self.ma60)
+        
+        # ======================================
+        # 预处理：强制确保所有序列为pd.Series，避免数组类型报错
+        # ======================================
         ma5_series = pd.Series(self.ma5)
         ma10_series = pd.Series(self.ma10)
-        
-        # 1. MA60 趋势向上 (最近10天)
-        ma60_up = (self.ma60 > ma60_series.shift(1)).rolling(10).sum() == 10
-        
-        # 2. 交叉信号
-        # prev <= prev AND curr > curr
-        gold_cross = (self.ma5 > self.ma10) & (ma5_series.shift(1) <= ma10_series.shift(1))
-        dead_cross = (self.ma5 < self.ma10) & (ma5_series.shift(1) >= ma10_series.shift(1))
-        
-        # 3. 记录最近一次交叉发生的"时间" (使用 integer index)
-        # 创建一个自然数序列 [0, 1, 2, ... n]
-        idx_series = pd.Series(np.arange(self.n), index=self.c.index)
-        
-        # 如果发生死叉，记录 index，否则 NaN，然后向前填充
-        last_dead_idx = idx_series.where(dead_cross).ffill()
-        last_gold_idx = idx_series.where(gold_cross).ffill()
-        
-        # 4. 判定逻辑
-        # A: 今天必须是金叉 (鸭嘴张开)
-        cond_today_gold = gold_cross
-        
-        # B: 最近一次死叉发生在金叉之前 (且距离不远，比如20天内)
-        # 注意：因为 cond_today_gold 为 True，last_gold_idx 就是今天
-        diff_days = last_gold_idx - last_dead_idx
-        cond_sequence = (diff_days > 0) & (diff_days < 20)
-        
-        # C: 回调过程缩量 (死叉到金叉期间，均量减少) - 可选，这里简化为价格支撑
-        # D: 价格在 MA60 之上 (容忍度 1%)
-        price_support = self.l > (self.ma60 * 0.99)
-        
-        return (ma60_up & cond_today_gold & cond_sequence & price_support).fillna(0).astype(int).values
+        ma60_series = pd.Series(self.ma60)
+        # 创建索引序列（pd.Series类型，使用整数索引避免类型混淆）
+        idx_series = pd.Series(range(self.n), index=self.c.index)
+
+        # ======================================
+        # 核心信号判定
+        # ======================================
+        # 金叉信号（MA5上穿MA10）
+        gold_cross = (ma5_series > ma10_series) & (ma5_series.shift(1) <= ma10_series.shift(1))
+        # 死叉信号（MA5下穿MA10）
+        dead_cross = (ma5_series < ma10_series) & (ma5_series.shift(1) >= ma10_series.shift(1))
+        # 鸭颈信号（MA5上穿MA60，老鸭头前提）
+        neck_cross = (ma5_series > ma60_series) & (ma5_series.shift(1) <= ma60_series.shift(1))
+
+        # ======================================
+        # 记录最近一次各类信号的索引（向前填充，确保每个位置都有最近信号的索引）
+        # ======================================
+        last_dead_idx = pd.Series(idx_series.where(dead_cross).ffill(), index=self.c.index)    # 最近一次死叉索引
+        last_gold_idx = pd.Series(idx_series.where(gold_cross).ffill(), index=self.c.index)    # 最近一次金叉索引
+        last_neck_idx = pd.Series(idx_series.where(neck_cross).ffill(), index=self.c.index)    # 最近一次鸭颈索引
+
+        # ======================================
+        # 分条件判定（核心逻辑，含所有优化点）
+        # ======================================
+        # 1. MA60趋势向上（放宽约束：最近10天整体上涨）
+        ma60_diff = ma60_series - ma60_series.shift(10)
+        ma60_trend_up = ma60_diff > 0
+        ma60_trend_up = ma60_trend_up.fillna(False)
+
+        # 2. 当日或近期金叉（放宽约束：4天内（含当日）出现金叉）
+        cond_recent_gold = gold_cross.rolling(4).max()  # 滚动最大值，4天内有金叉则为True
+
+        # 3. 时序合理性：鸭颈→死叉→金叉，且死叉到金叉间隔合理（1-20天）
+        cond_neck_before_dead = (last_neck_idx < last_dead_idx)  # 鸭颈在死叉之前
+        diff_days = last_gold_idx - last_dead_idx                # 死叉到金叉的间隔天数
+        cond_sequence = (diff_days > 0) & (diff_days < 20)       # 间隔为正且不超过20天
+
+        # 4. 回调全程价格支撑（优化：使用辅助函数减少冗余）
+        price_support_all = pd.Series(False, index=self.c.index, dtype=bool)
+        for i in range(self.n):
+            # 索引有效性校验
+            is_valid, dead_idx_int, gold_idx_int = self._is_index_valid(
+                last_dead_idx.iloc[i], last_gold_idx.iloc[i], self.n
+            )
+            if not is_valid:
+                continue
+            # 提取回调期间的最低价和MA60
+            period_low = self.l.iloc[dead_idx_int:gold_idx_int+1]
+            period_ma60 = ma60_series.iloc[dead_idx_int:gold_idx_int+1]
+            # 判定期间90%以上最低价在MA60的98%之上（放宽约束）
+            support_ratio = (period_low > (period_ma60 * 0.98)).mean()
+            price_support_all.iloc[i] = support_ratio >= 0.9
+
+        # 5. 回调缩量（优化：放宽约束，允许单日反复，提升准确性）
+        vol_shrink = pd.Series(False, index=self.c.index, dtype=bool)
+        for i in range(self.n):
+            # 索引有效性校验
+            is_valid, dead_idx_int, gold_idx_int = self._is_index_valid(
+                last_dead_idx.iloc[i], last_gold_idx.iloc[i], self.n
+            )
+            if not is_valid:
+                continue
+            # 提取回调期间成交量，计算3日滚动均值
+            period_vol = self.v.iloc[dead_idx_int:gold_idx_int+1]
+            vol_roll_mean = period_vol.rolling(3, min_periods=1).mean()
+            # 优化：使用diff()计算趋势，80%以上时间滚动均值下降（替代严格的all()，更贴合实际）
+            vol_diff = vol_roll_mean.diff()
+            vol_trend_down = (vol_diff < 0).mean() >= 0.8
+            vol_shrink.iloc[i] = vol_trend_down
+
+        # 6. 鸭头高度约束（死叉前10天股价涨幅≥5%）
+        duck_head_height = pd.Series(False, index=self.c.index, dtype=bool)
+        for i in range(self.n):
+            if pd.isna(last_dead_idx.iloc[i]):
+                continue
+            try:
+                dead_idx_int = int(last_dead_idx.iloc[i])
+            except (ValueError, TypeError):
+                continue
+            # 防止索引越界（死叉前至少10天数据）
+            if dead_idx_int < 10:
+                continue
+            # 死叉前10天收盘价涨幅
+            pre_dead_close = self.c.iloc[dead_idx_int - 10]
+            dead_close = self.c.iloc[dead_idx_int]
+            # 避免除零错误
+            if pre_dead_close == 0:
+                continue
+            price_rise = (dead_close - pre_dead_close) / pre_dead_close * 100
+            duck_head_height.iloc[i] = price_rise >= 5  # 涨幅≥5%
+
+        # 7. 优化：鸭颈后趋势约束（鸭颈到死叉期间MA5未有效跌破MA60）
+        neck_to_dead_valid = pd.Series(False, index=self.c.index, dtype=bool)
+        for i in range(self.n):
+            neck_to_dead_valid.iloc[i] = self._is_neck_dead_valid(
+                last_neck_idx.iloc[i], last_dead_idx.iloc[i], ma5_series, ma60_series
+            )
+
+        # 8. 优化：鸭头头顶平台约束（死叉前5-10天最高价波动≤10%，避免不规则震荡）
+        head_platform_valid = pd.Series(False, index=self.c.index, dtype=bool)
+        for i in range(self.n):
+            if pd.isna(last_dead_idx.iloc[i]):
+                continue
+            try:
+                dead_idx_int = int(last_dead_idx.iloc[i])
+            except (ValueError, TypeError):
+                continue
+            # 确保有足够数据计算头顶平台
+            if dead_idx_int < 10:
+                continue
+            # 提取死叉前5-10天的最高价（头顶区间）
+            head_highs = self.h.iloc[dead_idx_int-10 : dead_idx_int-5+1]
+            max_high = head_highs.max()
+            min_high = head_highs.min()
+            # 避免除零错误
+            if min_high == 0:
+                continue
+            # 波动幅度≤10%，判定为平台震荡
+            head_volatility = (max_high - min_high) / min_high * 100
+            head_platform_valid.iloc[i] = head_volatility <= 10
+
+        # ======================================
+        # 所有条件合并（最终判定，包含新增优化约束）
+        # ======================================
+        final_cond = (
+            ma60_trend_up &
+            cond_recent_gold &
+            cond_neck_before_dead &
+            cond_sequence &
+            price_support_all &
+            vol_shrink &
+            duck_head_height &
+            neck_to_dead_valid &  # 新增鸭颈趋势约束
+            head_platform_valid   # 新增头顶平台约束
+        )
+
+        # ======================================
+        # 结果处理：填充空值，转换为整数类型数组返回
+        # ======================================
+        return final_cond.fillna(0).astype(int).values
 
     def TOP_VOL_SPIKE(self):
         """顶部放量"""

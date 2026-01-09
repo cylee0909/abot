@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getCompanies } from '../api/companies'
 import { getGroups, getGroupStocks, type Group } from '../api/groups'
+import SearchBar from '../components/SearchBar'
 import './StockList.css'
 
 interface StockListProps {
@@ -11,11 +12,31 @@ interface StockListProps {
 export default function StockList({ selectedStock, onStockSelect }: StockListProps) {
   const [companies, setCompanies] = useState<any[]>([])
   const [allCompanies, setAllCompanies] = useState<any[]>([])
+  const [currentGroupCompanies, setCurrentGroupCompanies] = useState<any[]>([])
   const [isInitialized, setIsInitialized] = useState(false)
   const [groups, setGroups] = useState<Group[]>([])
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null)
   const [showFilter, setShowFilter] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
+
+  // 处理搜索结果
+  const handleSearchResults = (results: any[]) => {
+    setCompanies(results)
+  }
+  
+  // 处理搜索框展开/收起
+  const handleSearchExpand = (expanded: boolean) => {
+    setIsSearchExpanded(expanded)
+  }
+  
+  // 当分组变化时，重置搜索
+  useEffect(() => {
+    if (selectedGroupId !== null) {
+      // 分组变化时，确保搜索框为空
+      setIsSearchExpanded(false)
+    }
+  }, [selectedGroupId])
 
   // 获取所有股票列表
   useEffect(() => {
@@ -25,6 +46,7 @@ export default function StockList({ selectedStock, onStockSelect }: StockListPro
         if (res?.data) {
           setCompanies(res.data)
           setAllCompanies(res.data)
+          setCurrentGroupCompanies(res.data)
         }
       } catch (error) {
         console.error('获取股票列表失败:', error)
@@ -90,14 +112,17 @@ export default function StockList({ selectedStock, onStockSelect }: StockListPro
       if (groupId === null) {
         // 显示所有股票
         setCompanies(allCompanies)
+        setCurrentGroupCompanies(allCompanies)
       } else {
         // 获取分组中的股票
         const groupStocks = await getGroupStocks(groupId, true)
         setCompanies(groupStocks)
+        setCurrentGroupCompanies(groupStocks)
       }
     } catch (error) {
       console.error('筛选股票失败:', error)
       setCompanies(allCompanies)
+      setCurrentGroupCompanies(allCompanies)
       setSelectedGroupId(null)
     } finally {
       setLoading(false)
@@ -115,15 +140,25 @@ export default function StockList({ selectedStock, onStockSelect }: StockListPro
     <aside className="stock-list">
       {/* 股票列表标题和筛选功能 */}
       <div className="stock-list-header">
-        <h3 
-          className="stock-list-title"
-          onClick={() => setShowFilter(!showFilter)}
-        >
-          股票列表
-          {selectedGroupId !== null && (
-            <span className="filter-tag">{getSelectedGroupName()}</span>
-          )}
-        </h3>
+        <div className={`header-content ${isSearchExpanded ? 'search-expanded' : ''}`}>
+          <h3 
+            className="stock-list-title"
+            onClick={() => setShowFilter(!showFilter)}
+          >
+            {selectedGroupId !== null ? getSelectedGroupName() : '全部'} ▼
+          </h3>
+          
+          {/* 竖线分隔符 */}
+          <div className="header-divider"></div>
+          
+          {/* 搜索框 */}
+          <SearchBar
+            placeholder="搜索股票名称、代码或拼音"
+            onSearch={handleSearchResults}
+            allItems={currentGroupCompanies}
+            onExpand={handleSearchExpand}
+          />
+        </div>
         
         {/* 分组筛选下拉框 */}
         {showFilter && (

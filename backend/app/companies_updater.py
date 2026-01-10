@@ -26,8 +26,6 @@ class CompaniesUpdater:
             db_path: 数据库文件路径
         """
         self.db_path = db_path
-        self.data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
-        os.makedirs(self.data_dir, exist_ok=True)
         
         # 指数配置
         self.index_configs = {

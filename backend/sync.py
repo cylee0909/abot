@@ -18,11 +18,10 @@ def parse_args():
                         help=f'最大并发数 (默认: {settings.MAX_CONCURRENT})')
     parser.add_argument('--start-date', type=str, default=settings.START_DATE, 
                         help=f'开始日期 (默认: {settings.START_DATE})')
-
-    parser.add_argument('--end-date', type=str, default=None, 
-                        help='结束日期 (默认: 当前日期前1天)')
-    parser.add_argument('--companies-file', type=str, default=None, 
-                        help='公司列表文件路径，如果提供则更新公司列表')
+    parser.add_argument('--end-date', type=str, default=(datetime.now()).strftime('%Y-%m-%d'), 
+                        help='结束日期 (默认: 当前日期)')
+    parser.add_argument('--update-companies', type=bool, default=settings.UPDATE_COMPANIES, 
+                        help=f'是否更新公司列表 (默认: {settings.UPDATE_COMPANIES})')
     parser.add_argument('--stock-codes', type=str, nargs='*', default=None, 
                         help='指定的股票代码列表，多个股票代码用空格分隔 (默认: 所有公司)')
     return parser.parse_args()
@@ -35,14 +34,13 @@ async def main(args):
     db_path = args.db_path
     max_concurrent = args.max_concurrent
     start_date = args.start_date
-    end_date = args.end_date if args.end_date else (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-    companies_file = args.companies_file
+    end_date = args.end_date
     
     # 创建任务调度器
     scheduler = TaskScheduler(db_path, max_concurrent)
     
     # 运行完整更新任务
-    await scheduler.run_update(start_date, end_date, components_file=companies_file, stock_codes=args.stock_codes)
+    await scheduler.run_update(start_date, end_date, stock_codes=args.stock_codes)
     
     # 统计数据库中的数据条数
     count = scheduler.get_stock_count_in_db()

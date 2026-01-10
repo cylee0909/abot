@@ -11,5 +11,7 @@ class Settings(BaseSettings):
     
     # 股票下载配置
     START_DATE: str = "2015-01-01"
+    
+    UPDATE_COMPANIES: bool = True
 
 settings = Settings()

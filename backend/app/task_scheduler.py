@@ -33,7 +33,7 @@ class TaskScheduler:
         self.max_concurrent = max_concurrent
         self.downloader = StockDownloader(max_concurrent)
     
-    async def run_download_task(self, start_date: str, end_date: str, stock_codes: List[str] = None):
+    async def run_update(self, start_date: str, end_date: str, stock_codes: List[str] = None):
         """
         运行下载任务
         
@@ -131,18 +131,6 @@ class TaskScheduler:
         
         logger.info(f"下载任务完成! 成功处理 {success_count} 只股票，跳过 {skipped_count} 只股票，总计 {success_count + skipped_count} 只股票")
         return True
-    
-    async def run_update(self, start_date: str, end_date: str, stock_codes: List[str] = None):
-        """
-        运行完整更新任务
-        
-        Args:
-            start_date: 开始日期 (YYYY-MM-DD)
-            end_date: 结束日期 (YYYY-MM-DD)
-            stock_codes: 指定的股票代码列表，None 表示所有公司
-        """
-        logger.info("开始下载历史数据")
-        return await self.run_download_task(start_date, end_date, stock_codes)
     
     def get_stock_count_in_db(self):
         """

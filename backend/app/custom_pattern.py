@@ -19,7 +19,7 @@ class CustomPatternDetector:
         self.n = len(self.c)
         self.limit_threshold = limit_threshold
         self._precalculate_indicators()
-        self._debug = False
+        self._debug = True
 
     def _precalculate_indicators(self):
         # === 基础均线 ===

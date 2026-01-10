@@ -1,8 +1,8 @@
-import StockDetail from './pages/StockDetail'
+import MainLayout from './pages/MainLayout'
 import './App.css'
 
 function App() {
-  return <StockDetail />
+  return <MainLayout />
 }
 
 export default App

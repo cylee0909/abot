@@ -39,6 +39,16 @@ export interface PatternResult {
   patterns: PatternItem[]
 }
 
+export interface PatternInfo {
+  name: string
+  chinese: string
+}
+
+export interface AllPatternsResponse {
+  patterns: PatternInfo[]
+  count: number
+}
+
 export class DataSeries {
   dates: string[]
   ohlc: OHLC[]

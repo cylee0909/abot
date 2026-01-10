@@ -1,0 +1,142 @@
+.pattern-recognition {
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.pr-controls {
+  flex-shrink: 0;
+}
+
+.pr-results {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pr-results-header {
+  flex-shrink: 0;
+}
+
+.pr-table-wrapper {
+  flex: 1;
+  overflow: auto;
+}
+
+.pr-table-wrapper .ant-table {
+  min-height: 0;
+}
+
+
+
+.pr-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-end;
+  margin-bottom: 24px;
+}
+
+.pr-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pr-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+/* 固定 Select 组件高度，防止选中多个元素时高度变化 */
+.pr-control-group .ant-select {
+  min-height: 32px;
+}
+
+.pr-control-group .ant-select-selector {
+  min-height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.pr-results {
+  margin-top: 24px;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 24px;
+}
+
+.pr-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.pr-results-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111;
+  margin: 0;
+}
+
+.pr-results-info {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.pr-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+.pr-no-results {
+  padding: 40px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 14px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border: 1px dashed #e5e7eb;
+}
+
+/* 自定义 antd 样式 */
+.ant-select-dropdown {
+  max-height: 300px;
+}
+
+.ant-select-multiple .ant-select-selection-item {
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+
+.ant-table {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.ant-table-thead > tr > th {
+  background: #f9fafb !important;
+  font-weight: 500 !important;
+  color: #6b7280 !important;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: #f9fafb !important;
+}
+
+.ant-table-tbody > tr.bullish-row > td {
+  background: rgba(239, 68, 68, 0.02) !important;
+}
+
+.ant-table-tbody > tr.bearish-row > td {
+  background: rgba(5, 150, 105, 0.02) !important;
+}

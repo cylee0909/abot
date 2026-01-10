@@ -10,7 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.1.0",
     "@heroicons/react": "^2.2.0",
+    "antd": "^6.1.4",
     "echarts": "^6.0.0",
     "pinyin": "^4.0.0",
     "react": "^19.2.0",

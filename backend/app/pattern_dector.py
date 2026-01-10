@@ -22,7 +22,7 @@ class PatternDector:
         
         # 创建所有形态对象
         self._create_patterns()
-        
+
     def _create_patterns(self):
         """创建所有K线形态对象"""
         # 定义TALib形态列表：(形态代码, 中文名称, 函数)

@@ -1,6 +1,6 @@
 import React from 'react';
 import { SignalIcon } from '@heroicons/react/24/solid';
-import { PatternResult } from '../models/stock';
+import { PatternResult } from '../models/model';
 
 interface PatternSelectorProps {
   patterns: PatternResult | null;

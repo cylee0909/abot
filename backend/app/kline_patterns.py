@@ -4,8 +4,6 @@ import inspect
 from typing import List, Dict, Any
 from .pattern_dector import PatternDector
 
-
-
 def detect_kline_patterns(stock_data: List[Dict[str, Any]], patterns: List[str] = None) -> Dict[str, Any]:
     """
     使用TA-Lib检测K线形态
@@ -61,37 +59,3 @@ def detect_kline_patterns(stock_data: List[Dict[str, Any]], patterns: List[str] 
                 })
     
     return results
-
-
-
-def detect_latest_patterns(stock_data: List[Dict[str, Any]], days: int = 30, patterns: List[str] = None) -> Dict[str, Any]:
-    """
-    检测最近指定天数内的K线形态
-    :param stock_data: 股票历史数据
-    :param days: 最近天数
-    :param patterns: 要检测的K线形态列表，默认检测所有形态
-    :return: 包含最近检测结果的字典
-    """
-    # 获取检测结果
-    all_results = detect_kline_patterns(stock_data, patterns)
-    
-    # 如果没有数据，直接返回
-    if not all_results["patterns"]:
-        return all_results
-    
-    # 只保留最近days天的结果
-    latest_date = pd.to_datetime(all_results["latest_date"])
-    filtered_patterns = []
-    
-    for pattern in all_results["patterns"]:
-        pattern_date = pd.to_datetime(pattern["date"])
-        # 计算日期差
-        if (latest_date - pattern_date).days <= days:
-            filtered_patterns.append(pattern)
-    
-    # 更新结果
-    all_results["patterns"] = filtered_patterns
-    return all_results
-
-
-

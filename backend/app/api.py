@@ -11,7 +11,7 @@ from app.db.stock_groups import (
     add_stock_to_group, remove_stock_from_group, get_stocks_in_group,
     get_stocks_in_group_with_details, get_groups_for_stock
 )
-from app.kline_patterns import detect_kline_patterns, detect_latest_patterns
+from app.kline_patterns import detect_kline_patterns
 from app.backtest import backtest_kline_patterns
 
 DIST_DIR = (Path(__file__).resolve().parents[2] / 'frontend' / 'dist')
@@ -24,7 +24,7 @@ def create_app():
     @app.after_request
     def add_cors(resp):
         resp.headers['Access-Control-Allow-Origin'] = '*'
-        resp.headers['Access-Control-Allow-Methods'] = 'GET,OPTIONS'
+        resp.headers['Access-Control-Allow-Methods'] = 'GET,POST,DELETE,OPTIONS'
         resp.headers['Access-Control-Allow-Headers'] = 'Content-Type'
         return resp
 
@@ -156,31 +156,53 @@ def create_app():
         data = get_groups_for_stock(stock_code)
         return jsonify({'data': data, 'count': len(data)})
 
-    @app.route('/patterns/<stock_code>', methods=['GET'])
+    @app.route('/patterns', methods=['GET'])
+    def get_all_patterns():
+        # 导入PatternDector以获取所有形态
+        from app.pattern_dector import PatternDector
+        import numpy as np
+
+        m = np.array([1.0])
+        dector = PatternDector(m, m, m, m, m)
+        
+        # 构建形态列表
+        patterns = []
+        for pattern in dector.all_patterns:
+            patterns.append({
+                'name': pattern.code,
+                'chinese': pattern.name
+            })
+        return jsonify({'patterns': patterns, 'count': len(patterns)})
+
+    @app.route('/patterns/<stock_code>', methods=['POST'])
     def stock_patterns(stock_code):
         # 获取股票历史数据
-        start = request.args.get('start')
-        end = request.args.get('end')
-        limit = request.args.get('limit', type=int, default=365)
-        days = request.args.get('days', type=int, default=30)
+        data = request.get_json()
+        start = data.get('start')
+        end = data.get('end')
+        days = data.get('days', 30)
         
+        if not end:
+            end = date.today().strftime('%Y-%m-%d')
+
         # 如果没有提供start参数，根据limit计算距今的日期作为start
         if not start:
-            start = (date.today() - timedelta(days=limit)).strftime('%Y-%m-%d')
+            start = (date.fromisoformat(end) - timedelta(days=days)).strftime('%Y-%m-%d')
         
+        print(f"start: {start}, end: {end}, days: {days}")
+
         # 获取要检测的形态列表
-        patterns_param = request.args.get('patterns')
-        patterns = None
-        if patterns_param:
+        patterns = data.get('patterns')
+        if patterns and isinstance(patterns, str):
             # 分割逗号分隔的形态列表
-            patterns = [p.strip().upper() for p in patterns_param.split(',') if p.strip()]
+            patterns = [p.strip().upper() for p in patterns.split(',') if p.strip()]
         
         # 获取股票历史数据
         code = stock_code.split('.')[:1][0]
-        history_data = get_stock_history(code, start_date=start, end_date=end, limit=limit)
+        history_data = get_stock_history(code, start_date=start, end_date=end)
         
         # 检测K线形态
-        results = detect_latest_patterns(history_data, days=days, patterns=patterns)
+        results = detect_kline_patterns(history_data, patterns=patterns)
         
         return jsonify(results)
     

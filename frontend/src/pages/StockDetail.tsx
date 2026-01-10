@@ -6,8 +6,9 @@ import StockList from './StockList'
 import SelectGroupModal from './SelectGroupModal'
 import PatternSelector from './PatternSelector'
 import CustomTooltip from '../components/CustomTooltip'
-import { calcMA, calcMACD, DataSeries, formatNumber, resample, StockInfo, type Timeframe, type PatternResult } from '../models/stock'
-import { getCompany, getHistory, getPatterns } from '../api/companies'
+import { calcMA, calcMACD, DataSeries, formatNumber, resample, StockInfo, type Timeframe, type PatternResult } from '../models/model'
+import { getCompany, getHistory } from '../api/companies'
+import { getPatterns } from '../api/patterns'
 
 export default function StockDetail() {
   const chartRef = useRef<HTMLDivElement | null>(null)
@@ -485,11 +486,9 @@ export default function StockDetail() {
   }, [timeframe, data, patterns, selectedPatterns])
 
   return (
-    <div className="stock-detail-container">
-      {/* 左侧股票列表 */}
+    <div className="stock-detail-layout">
       <StockList selectedStock={selectedStock} onStockSelect={handleStockSelect} />
 
-      {/* 右侧股票详情 */}
       <main className="stock-detail">
         <header className="sd-header">
           <div className="sd-title">
@@ -500,8 +499,8 @@ export default function StockDetail() {
             </div>
           </div>
           <div className="sd-actions">
-            <button 
-              className="sd-btn ghost" 
+            <button
+              className="sd-btn ghost"
               onClick={() => setIsSelectGroupModalVisible(true)}
             >
               加入分组
@@ -549,7 +548,6 @@ export default function StockDetail() {
             showPatternSelect={showPatternSelect}
             onTogglePatternSelect={() => {
               setShowPatternSelect(!showPatternSelect);
-              // 如果是打开弹窗，并且还没有请求过形态数据，则请求
               if (!showPatternSelect && !hasRequestedPatterns) {
                 fetchPatterns();
               }
@@ -558,28 +556,25 @@ export default function StockDetail() {
         </section>
 
         <section className="sd-chart" ref={chartRef} />
-        
-        {/* 自定义Tooltip组件 - 仅在图表实例准备好后渲染 */}
+
         {chartInstanceRef.current && (
-          <CustomTooltip 
-            chart={chartInstanceRef.current} 
-            data={data} 
-            maData={chartData.maData} 
-            dif={chartData.dif} 
-            dea={chartData.dea} 
-            macd={chartData.macd} 
+          <CustomTooltip
+            chart={chartInstanceRef.current}
+            data={data}
+            maData={chartData.maData}
+            dif={chartData.dif}
+            dea={chartData.dea}
+            macd={chartData.macd}
             MA_CONFIG={chartData.MA_CONFIG}
           />
         )}
       </main>
 
-      {/* 选择分组弹窗 */}
       <SelectGroupModal
         visible={isSelectGroupModalVisible}
         stockCode={selectedStock}
         onClose={() => setIsSelectGroupModalVisible(false)}
         onSuccess={() => {
-          // 可以在这里添加成功提示
           console.log('股票已成功添加到分组')
         }}
       />

@@ -9,7 +9,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.kline_patterns import detect_kline_patterns, detect_latest_patterns
+from app.kline_patterns import detect_kline_patterns
 from app.db.stock_history import get_history
 from app.db.companies import get_companies
 

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import pinyin from 'pinyin'
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { getPinyin, getPinyinFirstLetters } from '../lib/utils'
 
 interface SearchBarProps {
   placeholder?: string
@@ -30,23 +30,7 @@ export default function SearchBar({
 
     const lowerTerm = term.toLowerCase()
     
-    // 获取字符串的拼音首字母
-    const getPinyinFirstLetters = (text: string) => {
-      const pinyinArray = pinyin(text, {
-        style: pinyin.STYLE_NORMAL,
-        segment: false
-      })
-      return pinyinArray.map(item => item[0][0]).join('').toLowerCase()
-    }
-    
-    // 获取字符串的完整拼音
-    const getPinyin = (text: string) => {
-      const pinyinArray = pinyin(text, {
-        style: pinyin.STYLE_NORMAL,
-        segment: false
-      })
-      return pinyinArray.map(item => item[0]).join('').toLowerCase()
-    }
+
     
     // 过滤项目
     const filtered = allItems.filter(item => {

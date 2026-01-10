@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { SearchOutlined, BarChartOutlined } from '@ant-design/icons'
 import { Select, DatePicker, InputNumber, Button, Table, Spin, Alert } from 'antd'
-import { getCompanies } from '../api/companies'
 import { getPatterns, getAllPatterns } from '../api/patterns'
 import { getPinyin, getPinyinFirstLetters } from '../lib/utils'
 import './PatternRecognition.css'
@@ -20,7 +19,7 @@ const getDirectionColor = (direction) => {
   return direction === 'bullish' ? 'red' : 'green'
 }
 
-export default function PatternRecognition() {
+export default function PatternRecognition({ onStockSelect, companies: propCompanies }) {
   const [companies, setCompanies] = useState([])
   const [selectedStocks, setSelectedStocks] = useState([])
   const [loadingCompanies, setLoadingCompanies] = useState(false)
@@ -39,10 +38,21 @@ export default function PatternRecognition() {
   const [pageSize, setPageSize] = useState(10)
   const [tableHeight, setTableHeight] = useState(400)
   const resultsRef = useRef(null)
+  const isPatternsLoaded = useRef(false)
 
   useEffect(() => {
-    // 同时加载公司列表和形态列表
-    Promise.all([loadCompanies(), loadPatterns()])
+    // 当从父组件接收到股票列表时使用
+    if (propCompanies && propCompanies.length > 0) {
+      setCompanies(propCompanies)
+    }
+  }, [propCompanies])
+
+  useEffect(() => {
+    // 加载形态列表
+    if (!isPatternsLoaded.current) {
+      loadPatterns()
+      isPatternsLoaded.current = true
+    }
   }, [])
 
   useEffect(() => {
@@ -84,19 +94,7 @@ export default function PatternRecognition() {
     };
   }, [detectionResults])
 
-  const loadCompanies = async () => {
-    setLoadingCompanies(true)
-    try {
-      const data = await getCompanies()
-      if (data && data.data) {
-        setCompanies(data.data)
-      }
-    } catch (err) {
-      console.error('加载股票列表失败:', err)
-    } finally {
-      setLoadingCompanies(false)
-    }
-  }
+
 
   const loadPatterns = async () => {
     setLoadingPatterns(true)
@@ -132,8 +130,18 @@ export default function PatternRecognition() {
     try {
       const allResults = []
       
-      // 遍历所有选中的股票
-      for (const stockCode of selectedStocks) {
+      // 确定要检测的股票列表
+      let stocksToDetect = []
+      if (selectedStocks.includes('all')) {
+        // 如果选择了全部公司，使用所有公司的代码
+        stocksToDetect = companies.map(company => company.security_code)
+      } else {
+        // 否则使用选中的股票
+        stocksToDetect = selectedStocks
+      }
+      
+      // 遍历所有要检测的股票
+      for (const stockCode of stocksToDetect) {
         const params = {
           days: detectionDays,
           start: dateRange.length > 0 ? dateRange[0] : '',
@@ -216,6 +224,9 @@ export default function PatternRecognition() {
   ]
 
   const getStockLabel = (value) => {
+    if (value === 'all') {
+      return '全部公司'
+    }
     const company = companies.find(c => c.security_code === value)
     return company ? `${company.security_code} ${company.security_name_abbr}` : value
   }
@@ -276,6 +287,7 @@ export default function PatternRecognition() {
               )
             }}
           >
+            <Option key="all" value="all">全部公司</Option>
             {companies.map((company) => (
               <Option key={company.security_code} value={company.security_code}>
                 {company.security_code} {company.security_name_abbr}
@@ -416,6 +428,16 @@ export default function PatternRecognition() {
                 }
               }}
               scroll={{ y: tableHeight }}
+              onRow={(record) => ({
+                onClick: () => {
+                  if (onStockSelect && record.stock_code) {
+                    onStockSelect(record.stock_code);
+                  }
+                },
+                style: {
+                  cursor: onStockSelect ? 'pointer' : 'default'
+                }
+              })}
             />
           </div>
         ) : (

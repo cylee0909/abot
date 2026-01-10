@@ -1,7 +1,22 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 
-function Tabs({ defaultValue, children, className }) {
-  const [activeTab, setActiveTab] = useState(defaultValue)
+function Tabs({ defaultValue, value, onValueChange, children, className }) {
+  const [activeTab, setActiveTab] = useState(value || defaultValue)
+
+  // 当外部value变化时，更新内部状态
+  useEffect(() => {
+    if (value !== undefined) {
+      setActiveTab(value)
+    }
+  }, [value])
+
+  // 当内部状态变化时，调用外部回调
+  const handleSetActiveTab = (newTab) => {
+    setActiveTab(newTab)
+    if (onValueChange) {
+      onValueChange(newTab)
+    }
+  }
 
   const tabsList = React.Children.toArray(children).find(
     child => child && child.type && child.type.displayName === 'TabsList'
@@ -13,12 +28,16 @@ function Tabs({ defaultValue, children, className }) {
 
   return (
     <div className={className}>
-      {tabsList && React.cloneElement(tabsList, { activeTab, setActiveTab })}
+      {tabsList && React.cloneElement(tabsList, { activeTab, setActiveTab: handleSetActiveTab })}
       {tabsContents.map(child => {
-        if (activeTab === child.props.value) {
-          return child
-        }
-        return null
+        return React.cloneElement(child, {
+          style: {
+            ...child.props.style,
+            display: activeTab === child.props.value ? 'block' : 'none',
+            height: '100%',
+            overflow: 'hidden'
+          }
+        })
       })}
     </div>
   )
@@ -49,8 +68,8 @@ function TabsTrigger({ value, children, activeTab, onClick, className }) {
 }
 TabsTrigger.displayName = 'TabsTrigger'
 
-function TabsContent({ children }) {
-  return <div style={{ height: '100%', overflow: 'hidden' }}>{children}</div>
+function TabsContent({ children, style }) {
+  return <div style={style}>{children}</div>
 }
 TabsContent.displayName = 'TabsContent'
 

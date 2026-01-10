@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import { getCompanies } from '../api/companies'
+import { useEffect, useState, useRef } from 'react'
 import { getGroups, getGroupStocks, type Group } from '../api/groups'
 import SearchBar from '../components/SearchBar'
 import './StockList.css'
@@ -7,9 +6,10 @@ import './StockList.css'
 interface StockListProps {
   selectedStock: string
   onStockSelect: (securityCode: string) => void
+  companies?: any[]
 }
 
-export default function StockList({ selectedStock, onStockSelect }: StockListProps) {
+export default function StockList({ selectedStock, onStockSelect, companies: propCompanies }: StockListProps) {
   const [companies, setCompanies] = useState<any[]>([])
   const [allCompanies, setAllCompanies] = useState<any[]>([])
   const [currentGroupCompanies, setCurrentGroupCompanies] = useState<any[]>([])
@@ -19,6 +19,7 @@ export default function StockList({ selectedStock, onStockSelect }: StockListPro
   const [showFilter, setShowFilter] = useState(false)
   const [loading, setLoading] = useState(false)
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
+  const isGroupsLoaded = useRef(false)
 
   // 处理搜索结果
   const handleSearchResults = (results: any[]) => {
@@ -38,21 +39,14 @@ export default function StockList({ selectedStock, onStockSelect }: StockListPro
     }
   }, [selectedGroupId])
 
-  // 获取所有股票列表
+  // 当从父组件接收到股票列表时使用
   useEffect(() => {
-    ;(async () => {
-      try {
-        const res = await getCompanies()
-        if (res?.data) {
-          setCompanies(res.data)
-          setAllCompanies(res.data)
-          setCurrentGroupCompanies(res.data)
-        }
-      } catch (error) {
-        console.error('获取股票列表失败:', error)
-      }
-    })()
-  }, [])
+    if (propCompanies && propCompanies.length > 0) {
+      setCompanies(propCompanies)
+      setAllCompanies(propCompanies)
+      setCurrentGroupCompanies(propCompanies)
+    }
+  }, [propCompanies])
 
   // 获取所有分组
   const fetchGroups = async () => {
@@ -66,7 +60,10 @@ export default function StockList({ selectedStock, onStockSelect }: StockListPro
 
   // 初始化分组数据
   useEffect(() => {
-    fetchGroups()
+    if (!isGroupsLoaded.current) {
+      fetchGroups()
+      isGroupsLoaded.current = true
+    }
   }, [])
 
   // 当用户打开筛选下拉框时，刷新分组列表

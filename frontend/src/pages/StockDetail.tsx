@@ -10,7 +10,7 @@ import { calcMA, calcMACD, DataSeries, formatNumber, resample, StockInfo, type T
 import { getCompany, getHistory } from '../api/companies'
 import { getPatterns } from '../api/patterns'
 
-export default function StockDetail() {
+export default function StockDetail({ stockCode: propStockCode, activeTab, companies }) {
   const chartRef = useRef<HTMLDivElement | null>(null)
   const chartInstanceRef = useRef<any>(null) // 用于存储图表实例
   const [timeframe, setTimeframe] = useState<Timeframe>('日K')
@@ -110,6 +110,14 @@ export default function StockDetail() {
   useEffect(() => {
     // 初始加载不执行，等待用户选择股票
   }, [])
+
+  useEffect(() => {
+    // 当从形态识别列表点击股票时，自动加载对应的股票详情
+    if (propStockCode && propStockCode !== '') {
+      setSelectedStock(propStockCode)
+      fetchStockDetail(propStockCode)
+    }
+  }, [propStockCode])
 
   useEffect(() => {
     setData(resample(baseData, timeframe))
@@ -487,7 +495,7 @@ export default function StockDetail() {
 
   return (
     <div className="stock-detail-layout">
-      <StockList selectedStock={selectedStock} onStockSelect={handleStockSelect} />
+      <StockList selectedStock={selectedStock} onStockSelect={handleStockSelect} companies={companies} />
 
       <main className="stock-detail">
         <header className="sd-header">
@@ -557,7 +565,7 @@ export default function StockDetail() {
 
         <section className="sd-chart" ref={chartRef} />
 
-        {chartInstanceRef.current && (
+        {chartInstanceRef.current && activeTab === 'stock-detail' && (
           <CustomTooltip
             chart={chartInstanceRef.current}
             data={data}

@@ -6,6 +6,7 @@ import argparse
 from datetime import datetime, timedelta
 from app.task_scheduler import TaskScheduler
 from app.config import settings
+from app.companies_updater import CompaniesUpdater
 
 def parse_args():
     """
@@ -40,6 +41,9 @@ async def main(args):
     scheduler = TaskScheduler(db_path, max_concurrent)
     
     # 运行完整更新任务
+    if args.update_companies:
+        CompaniesUpdater(db_path).update_companies()
+    
     await scheduler.run_update(start_date, end_date, stock_codes=args.stock_codes)
     
     # 统计数据库中的数据条数

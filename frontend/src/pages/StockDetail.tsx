@@ -72,8 +72,6 @@ export default function StockDetail({ stockCode: propStockCode, activeTab, compa
       const series = DataSeries.fromHistory(hist)
       setBaseData(series)
       setData(series)
-      // 不在这里请求形态数据，只有点击形态选择按钮时才请求
-      // setPatterns(patterns)
 
       setInfo(StockInfo.from(company, hist))
       // 重置形态数据和请求状态

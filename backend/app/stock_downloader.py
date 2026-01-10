@@ -130,6 +130,8 @@ class StockDownloader:
                 
                 df = df.rename(columns=column_mapping)
                 
+                print(df.head())
+
                 # 检查必要列是否存在
                 required_columns = ['date', 'open', 'close', 'high', 'low', 'amount']
                 if not all(col in df.columns for col in required_columns):

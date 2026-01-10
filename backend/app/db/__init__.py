@@ -14,7 +14,7 @@ from .stock_history import (
 
 from .companies import (
     init_table as init_companies_table,
-    update_companies as update_companies,
+    update_companies_from_data as update_companies_from_data,
     get_companies as get_companies,
     get_companies_with_details as get_companies_with_details
 )

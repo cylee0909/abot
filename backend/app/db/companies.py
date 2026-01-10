@@ -39,18 +39,16 @@ def init_table():
     
     db.commit()
 
-def update_companies(json_file_path: str) -> bool:
-    """将公司JSON数据更新到数据库"""
-    if not os.path.exists(json_file_path):
-        logger.error(f"公司文件不存在: {json_file_path}")
-        return False
+def update_companies_from_data(stocks: List[Dict]) -> bool:
+    """将公司数据更新到数据库
     
+    Args:
+        stocks: 公司数据列表
+    
+    Returns:
+        bool: 更新是否成功
+    """
     try:
-        # 读取JSON文件
-        with open(json_file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        stocks = data['result']['data']
         update_date = datetime.now().strftime('%Y-%m-%d')
         
         # 初始化数据库表
